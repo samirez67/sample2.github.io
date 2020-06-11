@@ -7,7 +7,7 @@ title: about
 
 ## Researchers
 
-  - [J. Berenike Herrmann](https://jberenike.github.io/), PI
+  - [Berenike Herrmann](https://jberenike.github.io/), PI
   - [Giulia Grisot](https://giuliagrisot.github.io/), postdoc
   - [Priska Handayani Rüegg](), student assistant
   - [Arthur Jacobs](http://www.loe.fu-berlin.de/en/dine/people/directors/jacobs.html), project partner (FU Berlin)
