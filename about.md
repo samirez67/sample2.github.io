@@ -5,7 +5,7 @@ title: about
 
 [about](about.md)  |  [publications](publications.md)  |  [conferences & talks](conf_talks.md)  |  [SA workspace](sa_coding.md)
 
-### Researchers
+## Researchers
 
   - [Berenike Herrmann](https://jberenike.github.io/), PI
   - [Giulia Grisot](https://giuliagrisot.github.io/), postdoc
