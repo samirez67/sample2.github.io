@@ -3,7 +3,7 @@ layout: default
 title: home
 ---
 
-[home](index.md) | [members](members.md) | [publications](publications.md) | [conferences & talks](conf_talks.md) | [coding](sa_coding.md)
+[home](index.md) | [members](members.md) | [publications](publications.md) | [conferences & talks](conf_talks.md)
 
 ## Welcome to our webpage!
 
