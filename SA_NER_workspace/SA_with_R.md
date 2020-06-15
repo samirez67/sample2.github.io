@@ -1,6 +1,6 @@
 ---
 title: Semantic Analysis with R
-author: "Giulia Grisot"
+author: "Online course"
 ---
 
 **Sentiment analysis helps you extract an author's feelings towards a subject. This exercise will give you a taste of what's to come!**
