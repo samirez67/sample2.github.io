@@ -10,6 +10,7 @@ title: about
   - [J. Berenike Herrmann](https://jberenike.github.io/), PI
   - [Giulia Grisot](https://giuliagrisot.github.io/), postdoc
   - [Priska Handayani Rüegg](), student assistant
+  - [Sebastian Cramm](), student assistant
   - [Arthur Jacobs](http://www.loe.fu-berlin.de/en/dine/people/directors/jacobs.html), project partner (FU Berlin)
   - [Susanne Gubser](), project partner (Basel University Library)
   - [Elias Kreyenbühl](), project partner (Basel University Library)
