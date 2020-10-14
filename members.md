@@ -7,13 +7,15 @@ title: about
 
 ## Researchers
 
-  - [J. Berenike Herrmann](https://jberenike.github.io/), PI
-  - [Giulia Grisot](https://giuliagrisot.github.io/), postdoc
-  - [Priska Handayani Rüegg](), student assistant
-  - [Sebastian Cramm](), student assistant
-  - [Jonas Waeber](), student assistant
-  - [Lesther Zulauf](https://dhlab.philhist.unibas.ch/en/persons/lesther-zulauf-bal-ut/), student assistant
-  - [Arthur Jacobs](http://www.loe.fu-berlin.de/en/dine/people/directors/jacobs.html), project partner (FU Berlin)
-  - [Susanne Gubser](), project partner (Basel University Library)
-  - [Elias Kreyenbühl](), project partner (Basel University Library)
+  - [J. Berenike Herrmann](https://jberenike.github.io/), Principal Investigator
+  - [Giulia Grisot](https://giuliagrisot.github.io/), Postdoctoral Researcher
+  
+  - [Sebastian Cramm](), Student Assistant
+  - [Priska Handayani Rüegg](), Student Assistant
+  - [Jonas Waeber](), Student Assistant
+  - [Lesther Zulauf](https://dhlab.philhist.unibas.ch/en/persons/lesther-zulauf-bal-ut/), Student Assistant
+  
+  - [Arthur Jacobs](http://www.loe.fu-berlin.de/en/dine/people/directors/jacobs.html), Project Partner (FU Berlin)
+  - [Susanne Gubser](), Project Partner (Basel University Library)
+  - [Elias Kreyenbühl](), Project Partner (Basel University Library)
 
