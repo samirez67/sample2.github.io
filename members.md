@@ -10,6 +10,8 @@ title: about
   - [J. Berenike Herrmann](https://jberenike.github.io/), Principal Investigator
   - [Giulia Grisot](https://giuliagrisot.github.io/), Postdoctoral Researcher
   - [Sebastian Cramm](), Student Assistant
+  - [Sarah Kündig](), Student Assistant
+  - [Johanna Meyer](), Student Assistant
   - [Priska Handayani Rüegg](), Student Assistant
   - [Jonas Waeber](), Student Assistant
   - [Lesther Zulauf](https://dhlab.philhist.unibas.ch/en/persons/lesther-zulauf-bal-ut/), Student Assistant
