@@ -1,6 +1,6 @@
 ---
 layout: default
-title: conding
+title: coding
 ---
 
 [home](index.md) | [members](members.md) | [publications](publications.md) | [conferences & talks](conf_talks.md) | [coding](sa_coding.md)
