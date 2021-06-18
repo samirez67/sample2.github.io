@@ -1,0 +1,24 @@
+{
+    "id": "6CF81759",
+    "path": "~/mallet-2.0.8/corpus/novela.txt",
+    "project_path": null,
+    "type": "text",
+    "hash": "3625893050",
+    "contents": "",
+    "dirty": false,
+    "created": 1623940558708.0,
+    "source_on_save": false,
+    "relative_order": 7,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1569575188,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1569575188,
+    "read_only": false,
+    "read_only_alternatives": []
+}

@@ -1,0 +1,33 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1623841130385.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "C577BA",
+    "lastKnownWriteTime" : 94375883712568,
+    "last_content_update" : 1623841130385,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "78989648",
+        "caption" : "austen_corpus",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=austen_corpus&cache_key=78989648",
+        "displayedObservations" : 10397,
+        "environment" : "",
+        "expression" : "austen_corpus",
+        "object" : "austen_corpus",
+        "preview" : 0,
+        "totalObservations" : 10397,
+        "variables" : 4
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 5,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1623844680392.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "226093209",
+    "id" : "ED7C9619",
+    "lastKnownWriteTime" : 1623662521,
+    "last_content_update" : 1623662521,
+    "path" : "~/Dropbox/IGEL Training School 2021 on Sentiment Analysis/Day1_practice_GG/practice_2B.R",
+    "project_path" : "practice_2B.R",
+    "properties" : {
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 6,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

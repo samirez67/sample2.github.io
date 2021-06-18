@@ -1,0 +1,24 @@
+{
+    "id": "FFFBF5C1",
+    "path": "~/mallet-2.0.8/corpus/Pron.txt",
+    "project_path": null,
+    "type": "text",
+    "hash": "4066369068",
+    "contents": "",
+    "dirty": false,
+    "created": 1623940563382.0,
+    "source_on_save": false,
+    "relative_order": 8,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1572270554,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1572270554,
+    "read_only": false,
+    "read_only_alternatives": []
+}

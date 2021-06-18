@@ -7,5 +7,5 @@ title: conding
 
 ## Coding samples and tutorials
 
-lorem ipsum 
+  - IGEL 2021 Sentiment Analysis Training School - [beginners course](code_and_scripts\IGEL_2021_Sentiment_Analysis_TS_Beginners_Grisot_G)
 
