@@ -3,7 +3,7 @@ layout: default
 title: home
 ---
 
-[home](index.md) | [members](members.md) | [publications](publications.md) | [conferences & talks](conf_talks.md) | [coding tutorials and scripts](https://github.com/mountain-sentiment/mountain-sentiment.github.io/tree/master/code_and_scripts)
+[home](index.md) | [members](members.md) | [publications](publications.md) | [conferences & talks](conf_talks.md) | [coding tutorials and scripts](sa_coding.md)
 
 ## Welcome to our webpage!
 
