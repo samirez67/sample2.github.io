@@ -7,5 +7,5 @@ title: conding
 
 ## Coding samples and tutorials
 
-  - IGEL 2021 Sentiment Analysis Training School - [beginners course](https://github.com/mountain-sentiment/mountain-sentiment.github.io/tree/master/code_and_scripts/IGEL_2021_Sentiment_Analysis_TS_Beginners_Grisot_G)
+  - IGEL 2021 Sentiment Analysis Training School - [Beginners course, written by Giulia Grisot](https://github.com/mountain-sentiment/mountain-sentiment.github.io/tree/master/code_and_scripts/IGEL_2021_Sentiment_Analysis_TS_Beginners_Grisot_G)
 
