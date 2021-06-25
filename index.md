@@ -12,7 +12,7 @@ We are a team of researchers interested in the computational investigation of Ge
 ## _High Mountains Low Arousal? Distant Reading Topographies of Sentiment in German Swiss Novels in the early 20th Century_
 
 - Swiss National Science Foundation (SNSF)-COST-Project, see [SNSF-database](http://p3.snf.ch/Project-189832)
-- [Working Group Prof. Berenike Herrmann at Bielefeld University](https://www.uni-bielefeld.de/fakultaeten/linguistik-literaturwissenschaft/personen/berenike-herrmann/)
+- Working Group Prof. Berenike Herrmann at [Bielefeld University](https://www.uni-bielefeld.de/fakultaeten/linguistik-literaturwissenschaft/personen/berenike-herrmann/)
 
 ### Summary
 
