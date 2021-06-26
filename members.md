@@ -3,12 +3,13 @@ layout: default
 title: about
 ---
 
-[home](index.md) | [members](members.md) | [publications](publications.md) | [conferences & talks](conf_talks.md)
+[home](index.md) | [members](members.md) | [publications](publications.md) | [conferences & talks](conf_talks.md) | [coding tutorials and scripts](sa_coding.md)
 
 ## Researchers
 
   - [J. Berenike **Herrmann**](https://jberenike.github.io/), Principal Investigator
   - [Giulia **Grisot**](https://giuliagrisot.github.io/), Postdoctoral Researcher
+  - [Simone **Rebora**](https://github.com/SimoneRebora/), Postdoctoral Researcher
   - [Sebastian **Cramm**](), Student Assistant
   - [Sarah **Kündig**](), Student Assistant
   - [Johanna **Meyer**](), Student Assistant
