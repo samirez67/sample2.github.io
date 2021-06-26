@@ -3,7 +3,7 @@ layout: default
 title: about
 ---
 
-[home](index.md) | [members](members.md) | [publications](publications.md) | [conferences & talks](conf_talks.md) | [coding tutorials and scripts](sa_coding.md)
+[home](index.md) | [publications](publications.md) | [conferences & talks](conf_talks.md) | [coding tutorials and scripts](sa_coding.md)
 
 ## Researchers
 
