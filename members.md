@@ -22,17 +22,16 @@ title: members
 
   - [Arthur **Jacobs**](http://www.loe.fu-berlin.de/en/dine/people/directors/jacobs.html) (FU Berlin)
   - [Susanne **Gubser**]() (Basel University Library)
-  - [Elias **Kreyenbühl**]() (Basel University Library)
+  - [Elias **KreyenbÃ¼hl**]() (Basel University Library)
   - [Jesko Reiling]() (ZB Zurich)
 
 ## Former Collaborators:
 
 - [Susanne **Gubser**](), Project Partner (Basel University Library)
-- [Elias **Kreyenbühl**](), Project Partner (Basel University Library)
-
+- [Elias **KreyenbÃ¼hl**](), Project Partner (Basel University Library)
 - [Sebastian **Cramm**](), Student Assistant
-- [Sarah **Kündig**](), Student Assistant
+- [Sarah **KÃ¼ndig**](), Student Assistant
 - [Johanna **Meyer**](), Student Assistant
-- [Priska Handayani **Rüegg**](), Student Assistant
-- [Jonas **Wäber**](), Student Assistant
+- [Priska Handayani **RÃ¼egg**](), Student Assistant
+- [Jonas **WÃ¤ber**](), Student Assistant
 - [Lesther **Zulauf**](https://dhlab.philhist.unibas.ch/en/persons/lesther-zulauf-bal-ut/), Student Assistant (Basel University)
