@@ -23,7 +23,7 @@ title: members
   - [Arthur **Jacobs**](http://www.loe.fu-berlin.de/en/dine/people/directors/jacobs.html) (FU Berlin)
   - [Susanne **Gubser**]() (Basel University Library)
   - [Elias **Kreyenbühl**]() (Basel University Library)
-  - [Jesko Reiling]() (ZB Zurich)
+  - [Jesko **Reiling**]() (ZB Zurich)
 
 ## Former Collaborators:
 
