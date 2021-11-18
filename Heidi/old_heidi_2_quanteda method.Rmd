@@ -1,0 +1,307 @@
+---
+title: "Heidi - quanteda method"
+output: html_notebook
+---
+
+```{r, warning=F, message=F}
+
+library(quanteda)
+library(quanteda.sentiment)
+library(ggpubr)
+```
+
+
+# Load txt files from a directory
+
+```{r}
+
+# read in texts (file name must be in the format: surname_title_year.txt)
+# for instructions about how to see:  https://data.library.virginia.edu/a-beginners-guide-to-text-analysis-with-quanteda/
+
+# corpus_source <- readtext("corpus/*.txt",
+#                       docvarsfrom = "filenames",
+#                       docvarnames = c("author", "title", "year"),
+#                       dvsep = "_",
+#                       encoding = "UTF-8")
+
+
+
+
+```
+
+
+# Transform into a corpus
+
+```{r}
+# doc.corpus <- corpus(heidi) #for corpus from txt files
+
+heidi_txt2 <- heidi_txt %>%
+  mutate(section = str_remove(section, "id")) %>%
+  mutate(section = as.numeric(section)) %>%
+  mutate(title = ifelse(section < 121, "Book2", "Book1")) %>%
+  mutate(year = ifelse(section < 121, "1881", "1880")) %>%
+  select(title, text, year)
+
+
+doc.corpus <- corpus(heidi_txt2) #for corpus from epub file
+
+
+quanteda::metadoc(doc.corpus, "language") <- "german"
+summary(doc.corpus)
+
+```
+# Tokenizatoin
+
+```{r}
+doc.tokens <- tokens(doc.corpus)
+
+doc.tokens.sentence <- tokens(doc.corpus, what = "sentence")
+
+#doc.tokens.character <- tokens(doc.corpus, what = "character")
+# summary(doc.tokens)
+# summary(doc.tokens.sentence)
+```
+
+## Remove punctuation and numbers
+
+```{r}
+doc.tokens <- tokens(doc.tokens, remove_punct = TRUE, 
+                     remove_numbers = TRUE)
+```
+
+## Remove stopwords
+
+```{r}
+# if you want to have a look at the stopwords:
+# quanteda::stopwords(language = "de")
+
+doc.tokens.nostop <- tokens_select(doc.tokens, stop_german, selection='remove')
+
+
+```
+
+
+## Stemming
+
+```{r}
+doc.stem <- tokens_wordstem(doc.tokens.nostop)
+
+```
+
+## Convert to lower case
+
+```{r}
+doc.lower <- tokens_tolower(doc.stem)
+
+
+summary(doc.lower)
+```
+
+## find matches
+
+```{r}
+corpus_CH_roads <- kwic(doc.corpus, pattern = phrase(CH_roads_list), case_insensitive = F, window = 100) %>%
+  as_tibble()  %>%
+  unite(text, 4:6, sep = " ") %>%
+  select(-2, -3) %>%
+  mutate(type = "CH_roads")
+```
+
+```{r}
+corpus_CH_city_village <- kwic(doc.corpus, pattern = phrase(CH_city_village_list), case_insensitive = F, window = 100, valuetype = "fixed") %>%
+  as_tibble()  %>%
+  #unite(text, 4:6, sep = " ") %>%
+  #select(-2, -3) %>%
+  mutate(type = "CH_city_village")
+```
+
+```{r}
+corpus_CH_mountain_hill <- kwic(doc.corpus, pattern = phrase(CH_mountain_hill_list), case_insensitive = F, window = 100, valuetype = "fixed") %>%
+  as_tibble()  %>%
+  unite(text, 4:6, sep = " ") %>%
+  select(-2, -3) %>%
+  mutate(type = "CH_mountain_hill")
+```
+
+```{r}
+corpus_CH_forests <- kwic(doc.corpus, pattern = phrase(CH_forests_list), case_insensitive = T, window = 100, valuetype = "fixed") %>%
+  as_tibble()  %>%
+  unite(text, 4:6, sep = " ") %>%
+  select(-2, -3) %>%
+  mutate(type = "CH_forests")
+```
+
+```{r}
+corpus_CH_country_regions <- kwic(doc.corpus, pattern = phrase(CH_country_regions_list), case_insensitive = F, window = 100, valuetype = "fixed") %>%
+  as_tibble()  %>%
+  unite(text, 4:6, sep = " ") %>%
+  select(-2, -3) %>%
+  mutate(type = "CH_country_regions")
+```
+
+```{r}
+corpus_CH_streams_lake <- kwic(doc.corpus, pattern = phrase(CH_streams_lake_list), case_insensitive = F, window = 100, valuetype = "fixed") %>%
+  as_tibble()  %>%
+  unite(text, 4:6, sep = " ") %>%
+  select(-2, -3) %>%
+  mutate(type = "CH_streams_lake")
+```
+
+```{r}
+corpus_CH_park_areas <- kwic(doc.corpus, pattern = phrase(CH_park_areas_list), case_insensitive = F, window = 100, valuetype = "fixed") %>%
+  as_tibble()  %>%
+  unite(text, 4:6, sep = " ") %>%
+  select(-2, -3) %>%
+  mutate(type = "CH_park_areas")
+```
+
+```{r}
+corpus_nat_terms <- kwic(doc.corpus, pattern = phrase(nat_terms_list), case_insensitive = F, window = 100, valuetype = "fixed") %>%
+  as_tibble()  %>%
+  unite(text, 4:6, sep = " ") %>%
+  select(-2, -3) %>%
+  mutate(type = "nat_terms")
+
+```
+
+```{r}
+corpus_CH_building_spots <- kwic(doc.corpus, pattern = phrase(CH_building_spots_list), case_insensitive = F, window = 100, valuetype = "fixed") %>%
+  as_tibble()  %>%
+  unite(text, 4:6, sep = " ") %>%
+  select(-2, -3) %>%
+  mutate(type = "CH_building_spots")
+```
+
+
+```{r}
+corpus_CH_urban <- kwic(doc.corpus, pattern = phrase(CH_urban_list), case_insensitive = F, window = 100, valuetype = "fixed") %>%
+  as_tibble()  %>%
+  unite(text, 4:6, sep = " ") %>%
+  select(-2, -3) %>%
+  mutate(type = "CH_urban")
+```
+
+
+```{r}
+corpus_CH_rural <- kwic(doc.corpus, pattern = phrase(CH_rural_list), case_insensitive = F, window = 100, valuetype = "fixed") %>%
+  as_tibble()  %>%
+  unite(text, 4:6, sep = " ") %>%
+  select(-2, -3) %>%
+  mutate(type = "CH_rural")
+```
+
+
+
+
+
+```{r}
+# corpus_all_entities <- bind_rows(corpus_CH_city_village,
+#                                  corpus_CH_country_regions, 
+#                                  corpus_CH_forests,
+#                                  corpus_CH_mountain_hill,
+#                                  # corpus_CH_park_areas, this category is too hybrid
+#                                  corpus_CH_roads,
+#                                  corpus_CH_streams_lake,
+#                                  corpus_nat_terms,
+#                                  corpus_CH_building_spots
+#                                  )
+
+corpus_all_entities <- bind_rows(corpus_CH_urban,
+                                 corpus_CH_rural,
+                                 corpus_nat_terms)
+
+
+
+corpus_all_entities <- corpus_all_entities %>%
+  mutate(doc_id = row_number(docname)) %>%
+  mutate(docname = str_remove(docname, "text")) %>%
+  mutate(docname = as.numeric(docname)) %>%
+  mutate(title = ifelse(docname <= 15, "Book1", "Book2")) %>%
+  mutate(year = ifelse(docname <= 15, "1880", "1881"))
+
+
+corpus_all_entities$text <- tm::removeNumbers(corpus_all_entities$text)
+
+corpus_all_entities$type <- as.factor(corpus_all_entities$type)
+
+```
+
+
+
+
+
+# sentiments
+
+```{r}
+summary(corpus_all_entities)
+
+# doc.corpus %>%
+#   textstat_polarity(dictionary = data_dictionary_sentiws)
+# 
+# corpus_CH_forests %>%
+#   textstat_polarity(dictionary = data_dictionary_sentiws)
+
+```
+
+<!-- ```{r} -->
+<!-- corpus(corpus_all_entities2) %>%  -->
+<!--   # dfm(remove = stopwords("de"), tolower = TRUE, stem = FALSE, remove_punct = TRUE) %>% -->
+<!--   summary() -->
+<!-- ``` -->
+
+
+```{r}
+corpus(corpus_all_entities) %>%
+  textstat_polarity(dictionary = data_dictionary_sentiws)
+
+# test <- data_dictionary_sentiws
+```
+
+
+```{r}
+plot <- dfm(corpus(corpus_all_entities)) %>% 
+  dfm_group(group = c("type", "title"), fill = TRUE) %>%
+  textstat_polarity(dictionary = data_dictionary_sentiws)
+
+# corpus_sum_sentiws <- as_tibble(dfm(corpus(corpus_all_entities)) %>% 
+#   dfm_group(group = c("type", "title"), fill = TRUE) %>%
+#   textstat_polarity(dictionary = data_dictionary_Rauh)) %>%
+#   
+# 
+
+plot$type <- plot$doc_id
+
+plot <- mutate(plot, type = ifelse(grepl('urban',doc_id), 'urban', as.character(type)))
+plot <- mutate(plot, type = ifelse(grepl('rural',doc_id), 'rural', as.character(type)))
+plot <- mutate(plot, type = ifelse(grepl('nat',doc_id), 'nat', as.character(type)))
+
+ggplot(plot, aes(type, sentiment, fill = type)) +
+  geom_boxplot() +
+  stat_compare_means(comparisons =                
+                       list(c("rural", "urban"), 
+                            c("rural", "nat"),
+                            c("urban", "nat")),
+                            label = "p.signif")
+
+```
+
+
+
+# DTM
+
+If, on the other hand, we wanted to go directly to creating a document feature matrix (dfm), performing all of the same functions as above–getting rid of punctuation, numbers, and spaces (which we also won’t do here, but is applied with the same syntax as listed above), stemming the words, deleting all of the stop words, and changing everything into lowercase–we would use the following code. The dfm function converts eligible corpora into the dfm format, while also removing punctuation and making the text all lowercase. Since we already walked through the purpose of each operation in relation to tokens, I will include all of the code in the same code chunk. Keep in mind that each procedure will be performed in the order listed above (excepting punctuation and lowercasing).
+
+```{r}
+doc.dfm <- dfm(doc.corpus, remove_numbers = TRUE, 
+               stem = TRUE, 
+               remove = stopwords("german"))
+
+```
+
+
+However, in general if we want to be careful we will proceed through tokenizing before converting our object into a dfm. Thus, we would perform the following final step, utilizing our previously created tokenized object for use as our final dfm.
+
+```{r}
+doc.dfm.final <- dfm(doc.lower)
+```
+

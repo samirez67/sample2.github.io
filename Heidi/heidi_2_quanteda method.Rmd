@@ -1,0 +1,289 @@
+---
+title: "Heidi - quanteda method"
+output: html_notebook
+---
+
+```{r, warning=F, message=F}
+
+library(quanteda)
+library(quanteda.sentiment)
+library(ggpubr)
+library(tidyverse)
+```
+
+
+
+
+# Transform into a corpus
+
+```{r}
+# heidi.doc.corpus <- corpus(heidi) #for corpus from txt files
+
+heidi.doc.corpus <- corpus_source %>%
+  dplyr::filter(title == "heidibrauchen" | title == "heidilehr")
+
+heidi.doc.corpus <- corpus(heidi.doc.corpus) #for corpus from epub file
+
+quanteda::metadoc(heidi.doc.corpus, "language") <- "german"
+
+# summary(heidi.doc.corpus)
+
+```
+# Tokenizatoin
+
+```{r}
+# heidi.doc.tokens <- tokens(heidi.doc.corpus)
+
+# heidi.doc.tokens.sentence <- tokens(heidi.doc.corpus, what = "sentence")
+
+## heidi.doc.tokens.character <- tokens(heidi.doc.corpus, what = "character")
+## summary(heidi.doc.tokens)
+## summary(heidi.doc.tokens.sentence)
+
+```
+
+## Remove punctuation and numbers
+
+```{r}
+# heidi.doc.tokens <- tokens(heidi.doc.tokens, remove_punct = TRUE, 
+#                      remove_numbers = TRUE)
+```
+
+## Remove stopwords
+
+```{r}
+# if you want to have a look at the stopwords:
+# quanteda::stopwords(language = "de")
+
+# heidi.doc.tokens.nostop <- tokens_select(heidi.doc.tokens, stop_german, selection='remove')
+
+
+```
+
+
+## Stemming
+
+```{r}
+# heidi.doc.stem <- tokens_wordstem(heidi.doc.tokens.nostop)
+
+```
+
+## Convert to lower case
+
+```{r}
+# heidi.doc.lower <- tokens_tolower(heidi.doc.stem)
+# 
+# 
+# summary(heidi.doc.lower)
+```
+
+## find matches
+
+
+```{r}
+heidi_nat_terms <- kwic(heidi.doc.corpus, pattern = phrase(nat_terms_list), case_insensitive = F, window = 100, valuetype = "fixed") %>%
+  as_tibble() %>%
+  unite(text, 4:6, sep = " ") %>%
+  select(-2, -3) %>%
+  mutate(type = "nat_terms")
+
+```
+
+
+```{r}
+heidi_urban <- kwic(heidi.doc.corpus, pattern = phrase(urban_terms_list), case_insensitive = F, window = 100, valuetype = "fixed") %>%
+  as_tibble()  %>%
+  unite(text, 4:6, sep = " ") %>%
+  select(-2, -3) %>%
+  mutate(type = "urban")
+```
+
+
+```{r}
+heidi_rural <- kwic(heidi.doc.corpus, pattern = phrase(rural_terms_list), case_insensitive = F, window = 100, valuetype = "fixed") %>%
+  as_tibble()  %>%
+  unite(text, 4:6, sep = " ") %>%
+  select(-2, -3) %>%
+  mutate(type = "rural")
+```
+
+
+```{r}
+heidi_gpe_natural <- kwic(heidi.doc.corpus, pattern = phrase(geoloc_nat_list), case_insensitive = F, window = 100, valuetype = "fixed") %>%
+  as_tibble()  %>%
+  unite(text, 4:6, sep = " ") %>%
+  select(-2, -3) %>%
+  mutate(type = "geoloc_nat")
+```
+
+```{r}
+heidi_gpe_loc <- kwic(heidi.doc.corpus, pattern = phrase(geoloc_loc_list), case_insensitive = F, window = 100, valuetype = "fixed") %>%
+  as_tibble()  %>%
+  unite(text, 4:6, sep = " ") %>%
+  select(-2, -3) %>%
+  mutate(type = "geoloc_loc")
+```
+
+```{r}
+heidi_all_entities <- bind_rows(heidi_urban,
+                                 heidi_rural,
+                                 heidi_nat_terms,
+                                 heidi_gpe_loc,
+                                 heidi_gpe_natural)
+  
+  
+heidi_all_entities <- heidi_all_entities %>%
+  mutate(doc_id = row_number(docname))
+
+heidi_all_entities <- heidi_all_entities %>%
+  tidyr::separate(col = 1, into = c("author", "title", "year"), sep = "_")
+
+heidi_all_entities$year <- str_remove(heidi_all_entities$year, ".txt")
+
+heidi_all_entities$text <- str_remove(heidi_all_entities$text, "_")
+
+heidi_all_entities$text <- tm::removeNumbers(heidi_all_entities$text)
+
+heidi_all_entities$type <- as.factor(heidi_all_entities$type)
+heidi_all_entities$title <- as.factor(heidi_all_entities$title)
+heidi_all_entities$author <- as.factor(heidi_all_entities$author)
+heidi_all_entities$doc_id <- as.factor(heidi_all_entities$doc_id)
+heidi_all_entities$year <- as.numeric(heidi_all_entities$year)
+
+```
+
+
+
+# check matches in corpus
+
+## urban 
+
+```{r}
+heidi_all_entities %>%
+  filter(type == "urban") %>%
+  select(pattern) %>%
+  group_by(pattern) %>%
+  mutate(count=n()) %>%
+  distinct() %>%
+  arrange(desc(count))
+```
+
+
+## geoloc_loc 
+
+```{r}
+heidi_all_entities %>%
+  filter(type == "geoloc_loc") %>%
+  select(pattern) %>%
+  group_by(pattern) %>%
+  mutate(count=n()) %>%
+  distinct() %>%
+  arrange(desc(count))
+```
+
+
+## geoloc_nat 
+
+```{r}
+
+heidi_all_entities %>%
+  filter(type == "geoloc_nat") %>%
+  select(pattern) %>%
+  group_by(pattern) %>%
+  mutate(count=n()) %>%
+  distinct() %>%
+  arrange(desc(count))
+
+```
+
+
+## rural
+
+```{r}
+
+heidi_all_entities %>%
+  filter(type == "rural") %>%
+  select(pattern) %>%
+  group_by(pattern) %>%
+  mutate(count=n()) %>%
+  distinct() %>%
+  arrange(desc(count))
+
+```
+
+
+## nat_terms 
+
+```{r}
+
+heidi_all_entities %>%
+  filter(type == "nat_terms") %>%
+  select(pattern) %>%
+  group_by(pattern) %>%
+  mutate(count=n()) %>%
+  distinct() %>%
+  arrange(desc(count))
+
+```
+
+
+
+# sentiments
+
+```{r}
+summary(heidi_all_entities)
+
+# heidi.doc.corpus %>%
+#   textstat_polarity(dictionary = data_dictionary_sentiws)
+# 
+# corpus_CH_forests %>%
+#   textstat_polarity(dictionary = data_dictionary_sentiws)
+
+```
+
+<!-- ```{r} -->
+<!-- corpus(heidi_all_entities2) %>%  -->
+<!--   # dfm(remove = stopwords("de"), tolower = TRUE, stem = FALSE, remove_punct = TRUE) %>% -->
+<!--   summary() -->
+<!-- ``` -->
+
+
+```{r}
+corpus(heidi_all_entities) %>%
+  textstat_polarity(dictionary = data_dictionary_sentiws)
+
+# test <- data_dictionary_sentiws
+```
+
+
+```{r}
+plot <- dfm(corpus(heidi_all_entities)) %>% 
+  dfm_group(group = c("type", "title"), fill = TRUE) %>%
+  textstat_polarity(dictionary = data_dictionary_sentiws)
+
+
+plot$type <- plot$doc_id
+
+plot <- mutate(plot, type = ifelse(grepl('urban',doc_id), 'urban', as.character(type)))
+plot <- mutate(plot, type = ifelse(grepl('rural',doc_id), 'rural', as.character(type)))
+plot <- mutate(plot, type = ifelse(grepl('nat',doc_id), 'nat', as.character(type)))
+plot <- mutate(plot, type = ifelse(grepl('geoloc_nat',doc_id), 'geoloc_nat', as.character(type)))
+plot <- mutate(plot, type = ifelse(grepl('geoloc_loc',doc_id), 'geoloc_loc', as.character(type)))
+
+
+ggplot(plot, aes(type, sentiment, fill = type)) +
+  geom_boxplot() +
+  stat_compare_means(comparisons =                
+                       list(c("rural", "urban"), 
+                            c("rural", "nat"),
+                            c("urban", "nat"),
+                            c("geoloc_nat", "urban"),
+                            c("geoloc_nat", "rural"),
+                            c("geoloc_nat", "nat"),
+                            c("geoloc_loc", "geoloc_nat"),
+                            c("geoloc_loc", "urban"),
+                            c("geoloc_loc", "rural"),
+                            c("geoloc_loc", "nat")),
+                            label = "p.signif")
+
+```

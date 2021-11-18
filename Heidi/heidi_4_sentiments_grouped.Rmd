@@ -1,0 +1,853 @@
+---
+title: "Test paper - sentiments grouped"
+author: "Giulia Grisot"
+date: "2020"
+output:
+  html_notebook: 
+    theme: flatly
+    fig_width: 8
+    fig_height: 5
+---
+
+# Corpus preparation
+
+```{r message=FALSE, warning=F}
+library(tidyverse)
+# library(harrypotter)
+library(lme4)
+library(lmerTest)
+library(tidytext)
+library(sjPlot)
+library(ggplot2)
+library(ggsci)
+library(ggpubr)
+library(sjstats)
+library(knitr)
+
+```
+
+
+# frequency per entity type_grouped
+
+```{r}
+
+heidi_all_entities_long[,c("type_grouped","word")]  %>%
+  group_by(type_grouped, word) %>%
+  anti_join(heidi_names, by = "word") %>%  anti_join(stop_german, by = "word") %>% # delete stopwords
+  count() %>% # summarize count per word per title
+  arrange(desc(n)) %>% # highest frequency on top
+  group_by(type_grouped)
+# %>% # 
+#   mutate(top = seq_along(word)) %>% # identify rank within group
+#   filter(top <= 15) %>% # retain top 15 frequent words
+#   # create barplot
+#   ggplot(aes(x = -top, fill = type_grouped)) + 
+#   geom_bar(aes(y = n), stat = 'identity', col = 'black') +
+#   # make sure words are printed either in or next to bar
+#   geom_text(aes(y = ifelse(n > max(n) / 2, max(n) / 50, n + max(n) / 50),
+#                 label = word), size = fs/3, hjust = "left") +
+#   theme_minimal() +
+#   theme(legend.position = 'none', # get rid of legend
+#         text = element_text(size = fs), # determine fs
+#         axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5), # rotate x text
+#         axis.ticks.y = element_blank(), # remove y ticks
+#         axis.text.y = element_blank()) + # remove y text
+#   labs(y = "Word count", x = "", # add labels
+#        title = "Most frequent words by type_grouped") +
+#   facet_grid(. ~ type_grouped) + # separate plot for each book
+#   coord_flip() + # flip axes
+#   # scale_fill_hp(discrete = T, option = "Always")
+
+```
+
+
+
+# Sentiments by type_grouped
+
+## BAWL 
+
+### arousal
+
+```{r}
+heidi_BAWL %>%
+  group_by(title, doc_id) %>%
+  ggplot(aes(type_grouped, fill = type_grouped)) +
+  geom_histogram(stat = "count", na.rm = T) +
+  theme_minimal()
+
+```
+
+
+```{r}
+heidi_BAWL %>%
+  # summarise(value = mean(value)) %>%
+  ggplot(aes(x = type_grouped, y = arousal, fill = type_grouped)) +
+  # ylim(-2,2) +
+  # facet_wrap(~ type_grouped, scales = "free_y") +
+  geom_boxplot() +
+  theme_minimal() +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("BAWL", subtitle = "arousal") +
+  stat_compare_means(method = "wilcox.test",
+                     comparisons =                
+                       list(c("NAT", "OTHER")),
+                     na.rm = T,
+                     label = "p.signif")
+
+
+```
+
+#### summary
+
+```{r}
+
+Rmisc::summarySE(heidi_BAWL, measurevar = "arousal",
+          groupvars = c("type_grouped"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+#### compare means
+
+```{r}
+
+compare_means(arousal ~ type_grouped, data = heidi_BAWL, method = "wilcox")
+
+```
+
+#### lmer
+
+```{r}
+BAWL_grouped_arousal_heidi_lmer <- lmer(arousal ~ type_grouped + 
+                            (1|title) + 
+                            (1|frequency),
+                          heidi_BAWL, REML = F)
+
+```
+
+
+### valence (polarity)
+
+```{r}
+heidi_BAWL  %>%
+  # summarise(value = mean(value)) %>%
+  ggplot(aes(x = type_grouped, y = valence, fill = type_grouped)) +
+  # ylim(-2,2) +
+  # facet_wrap(~ type_grouped, scales = "free_y") +
+  geom_boxplot() +
+  theme_minimal() +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("BAWL", subtitle = "valence") +
+  stat_compare_means(method = "wilcox.test",
+                     comparisons =                
+                       list(c("NAT", "OTHER")),
+                     na.rm = T,
+                     label = "p.signif")
+
+```
+
+#### summary
+
+```{r}
+
+Rmisc::summarySE(heidi_BAWL, measurevar = "valence",
+          groupvars = c("type_grouped"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+#### compare means
+
+```{r}
+
+compare_means(valence ~ type_grouped, data = heidi_BAWL, method = "wilcox.test")
+
+
+```
+
+#### lmer
+
+```{r}
+BAWL_grouped_valence_heidi_lmer <- lmer(valence ~ type_grouped + 
+                            (1|frequency) +
+                            (1|title),
+                          heidi_BAWL, REML = F)
+
+```
+
+### imageability
+
+```{r}
+heidi_BAWL  %>%
+  # summarise(value = mean(value)) %>%
+  ggplot(aes(x = type_grouped, y = imageability, fill = type_grouped)) +
+  # ylim(-2,2) +
+  # facet_wrap(~ type_grouped, scales = "free_y") +
+  geom_boxplot() +
+  theme_minimal() +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("BAWL", subtitle = "imageability") +
+  # if unified nat_term and CH_rural
+  stat_compare_means(method = "wilcox.test",
+                     comparisons =                
+                       list(c("NAT", "OTHER")),
+                     na.rm = T,
+                     label = "p.signif")
+
+```
+
+#### summary
+
+```{r}
+
+Rmisc::summarySE(heidi_BAWL, measurevar = "imageability",
+          groupvars = c("type_grouped"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+#### compare means
+
+```{r}
+
+compare_means(imageability ~ type_grouped, data = heidi_BAWL, method = "wilcox.test")
+
+
+```
+
+#### lmer
+
+```{r}
+BAWL_grouped_imag_heidi_lmer <- lmer(imageability ~ type_grouped +
+                         (1|frequency) +
+                         (1|title),
+                       heidi_BAWL, REML = F)
+
+
+```
+
+
+## SentiWS 
+
+### polarity
+
+```{r}
+heidi_sentiWS %>%
+  # summarise(value = mean(value)) %>%
+  ggplot(aes(x = type_grouped, y = SentiWS_polarity, fill = type_grouped)) +
+  # facet_wrap(~ type_grouped, scales = "free_y") +
+  geom_boxplot() +
+  theme_minimal() +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("SentiWS", subtitle = "polarity") +
+  stat_compare_means(method = "wilcox.test",
+                     comparisons =                
+                       list(c("NAT", "OTHER")),
+                     na.rm = T,
+                     label = "p.signif")
+
+#   facet_grid(. ~ title)
+```
+
+#### summary
+
+```{r}
+
+Rmisc::summarySE(heidi_sentiWS, measurevar = "SentiWS_polarity",
+          groupvars = c("type_grouped"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+#### compare means
+
+```{r}
+
+compare_means(SentiWS_polarity ~ type_grouped, data = heidi_sentiWS, method = "wilcox.test")
+
+
+```
+
+#### lmer
+
+```{r}
+SentiWS_grouped_polarity_heidi_lmer <- lmer(SentiWS_polarity ~ type_grouped +
+                                (1|frequency) +
+                                (1|title),
+                              heidi_sentiWS, REML = F)
+
+```
+
+
+
+
+## LANG 
+
+### arousal
+
+```{r}
+heidi_LANG %>%
+  # summarise(value = mean(value)) %>%
+  ggplot(aes(x = type_grouped, y = arousal_mean, fill = type_grouped)) +
+  # ylim(-2,2) +
+  # facet_wrap(~ type_grouped, scales = "free_y") +
+  geom_boxplot() +
+    theme_minimal() +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("LANG", subtitle = "arousal") +
+  stat_compare_means(method = "wilcox.test",
+                     comparisons =                
+                       list(c("NAT", "OTHER")),
+                     na.rm = T,
+                     label = "p.signif")
+
+```
+
+#### summary
+
+```{r}
+
+Rmisc::summarySE(heidi_LANG, measurevar = "arousal_mean",
+          groupvars = c("type_grouped"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+#### compare means
+
+```{r}
+
+compare_means(arousal_mean ~ type_grouped, data = heidi_LANG, method = "wilcox.test")
+
+
+```
+
+#### lmer
+
+```{r}
+LANG_grouped_arousal_heidi_lmer <- lmer(arousal_mean ~ type_grouped + 
+                            (1|frequency) +
+                            (1|title),
+                          heidi_LANG, REML = F)
+
+
+# summary(LANG_arousal_heidi_lmer)
+
+```
+
+### valence
+
+```{r}
+heidi_LANG %>%
+  # summarise(value = mean(value)) %>%
+  ggplot(aes(x = type_grouped, y = valence_mean, fill = type_grouped)) +
+  # ylim(-2,2) +
+  # facet_wrap(~ type_grouped, scales = "free_y") +
+  geom_boxplot() +
+   theme_minimal() +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("LANG", subtitle = "valence") +
+    stat_compare_means(method = "wilcox.test",
+                     comparisons =                
+                       list(c("NAT", "OTHER")),
+                     na.rm = T,
+                     label = "p.signif")
+
+```
+
+#### summary
+
+```{r}
+
+Rmisc::summarySE(heidi_LANG, measurevar = "valence_mean",
+          groupvars = c("type_grouped"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+#### compare means
+
+```{r}
+
+compare_means(valence_mean ~ type_grouped, data = heidi_LANG, method = "wilcox.test")
+
+
+```
+
+#### lmer
+
+```{r}
+LANG_grouped_valence_heidi_lmer <- lmer(valence_mean ~ type_grouped + 
+                            (1|frequency) +
+                            (1|title),
+                          heidi_LANG, REML = F)
+
+```
+
+### concreteness
+
+```{r}
+heidi_LANG %>%
+  # summarise(value = mean(value)) %>%
+  ggplot(aes(x = type_grouped, y = concreteness_mean, fill = type_grouped)) +
+  # ylim(-2,2) +
+  # facet_wrap(~ type_grouped, scales = "free_y") +
+  geom_boxplot() +
+    theme_minimal() +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("LANG", subtitle = "concreteness") +
+    stat_compare_means(method = "wilcox.test",
+                     comparisons =                
+                       list(c("NAT", "OTHER")),
+                     na.rm = T,
+                     label = "p.signif")
+
+```
+
+#### summary
+
+```{r}
+
+Rmisc::summarySE(heidi_LANG, measurevar = "concreteness_mean",
+          groupvars = c("type_grouped"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+#### compare means
+
+```{r}
+
+compare_means(concreteness_mean ~ type_grouped, data = heidi_LANG, method = "wilcox.test")
+
+
+```
+
+#### lmer
+
+```{r}
+LANG_grouped_concr_heidi_lmer <- lmer(concreteness_mean ~ type_grouped + 
+                            (1|frequency) +
+                            (1|title),
+                          heidi_LANG, REML = F)
+
+```
+
+# discrete models
+
+## Klinger
+
+### emotions
+
+#### absolute plot
+
+```{r}
+
+heidi_klinger %>%
+  group_by(emotion, type_grouped) %>%
+  filter(!is.na(emotion)) %>%
+  summarize(count = n()) %>%
+  ggplot(aes(x = emotion, y = count, fill = emotion)) +    
+  geom_bar(stat = 'identity') +
+  theme_minimal() +
+  ggtitle("Klinger", subtitle = "absolute count") + 
+  theme(legend.position = 'none', # get rid of legend
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5)) + 
+  
+  facet_grid(. ~ type_grouped)
+
+```
+
+#### proportional plot
+
+```{r}
+heidi_klinger %>%
+  group_by(type_grouped) %>%
+  mutate(row_n_type_grouped = n()) %>%
+  group_by(type_grouped, emotion) %>%
+  summarise(emotion_count = n()/row_n_type_grouped) %>%
+  group_by(emotion) %>%
+  distinct() %>%
+  filter(!is.na(emotion)) %>%
+  ggplot(aes(x = emotion, y = emotion_count, fill = emotion)) +    
+  geom_bar(stat = 'identity') +
+  theme_minimal() +
+  ggtitle("Klinger", subtitle = "proportional count") +
+  theme(legend.position = 'none', # get rid of legend
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5)) + 
+  
+  facet_grid(. ~ type_grouped)
+```
+
+```{r}
+klinger_grouped_heidi_lmer <- lmer(emotion_count ~ type_grouped*emotion + 
+                            (1|frequency) +
+                            (1|title),
+                          heidi_klinger, REML = F)
+
+
+summary(klinger_grouped_heidi_lmer)
+```
+
+## Plutchnik
+
+### emotions
+
+#### absolute plot
+
+```{r}
+
+heidi_plutchik %>%
+  group_by(emotion, type_grouped) %>%
+  filter(!is.na(emotion)) %>%
+  summarize(count = n()) %>%
+  ggplot(aes(x = emotion, y = count, fill = emotion)) +    
+  geom_bar(stat = 'identity') +
+  theme_minimal() +
+  ggtitle("Plutchik", subtitle = "absolute count") +
+  theme(legend.position = 'none', # get rid of legend
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5)) + 
+  facet_grid(. ~ type_grouped)
+
+```
+#### proportional plot
+
+```{r}
+heidi_plutchik %>%
+  group_by(type_grouped) %>%
+  mutate(row_n_type_grouped = n()) %>%
+  group_by(type_grouped, emotion) %>%
+  summarise(emotion_count = n()/row_n_type_grouped) %>%
+  group_by(emotion) %>%
+  distinct() %>%
+  filter(!is.na(emotion)) %>%
+  ggplot(aes(x = emotion, y = emotion_count, fill = emotion)) +    
+  geom_bar(stat = 'identity') +
+  theme_minimal() +
+  ggtitle("Plutchik", subtitle = "proportional count") +
+  theme(legend.position = 'none', # get rid of legend
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5)) + 
+  facet_grid(. ~ type_grouped)
+
+```
+
+```{r}
+plutchik_grouped_heidi_lmer <- lmer(emotion_count ~ type_grouped*emotion + 
+                            (1|frequency) +
+                            (1|title),
+                          heidi_plutchik, REML = F)
+
+summary(plutchik_grouped_heidi_lmer)
+```
+
+
+## Sentiart
+
+#### summary
+
+```{r}
+
+Rmisc::summarySE(heidi_SentiArt2,
+                 measurevar = "value_scaled",
+          groupvars = c("type_grouped", "emotion"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+#### compare means
+
+```{r}
+compare_means(value_scaled ~ type_grouped, data = heidi_SentiArt2, method = "wilcox.test", group.by = "emotion")
+
+```
+
+#### absolute plot
+
+```{r}
+heidi_SentiArt2 %>%
+  ggplot(aes(x = emotion, y = value_scaled, fill = emotion)) +    
+  geom_bar(stat = 'identity') +
+  theme_minimal() +
+  ggtitle("SentiArt", subtitle = "absolute count") +
+  theme(legend.position = 'none', # get rid of legend
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5)) + 
+  facet_grid(. ~ type_grouped)
+```
+
+
+#### proportional plot
+
+```{r}
+
+heidi_SentiArt2 %>%
+  group_by(type_grouped) %>%
+  mutate(row_n_type_grouped = n()) %>%
+  group_by(type_grouped, emotion) %>%
+  summarise(emotion_value = value_scaled/row_n_type_grouped) %>%
+  group_by(emotion) %>%
+  distinct() %>%
+  filter(!is.na(emotion)) %>%
+  ggplot(aes(x = emotion, y = emotion_value, fill = emotion)) +    
+  geom_bar(stat = 'identity') +
+  theme_minimal() +
+  ggtitle("SentiArt") +
+  theme(legend.position = 'none', # get rid of legend
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5)) + 
+  facet_grid(. ~ type_grouped)
+
+
+```
+## single emotions comparisons
+
+### fear
+
+```{r}
+heidi_SentiArt2 %>%
+  filter(emotion == "fear_z") %>%
+  ggplot(aes(x = type_grouped, y = value_scaled, fill = type_grouped)) +
+  # ylim(-2,2) +
+  # facet_wrap(~ type_grouped, scales = "free_y") +
+  geom_boxplot() +
+  theme_minimal() +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("sentiArt", subtitle = "fear") +
+  # if unified nat_term and CH_rural
+  stat_compare_means(method = "wilcox.test",
+                     comparisons =                
+                       list(c("NAT", "OTHER")),
+                     na.rm = T,
+                     label = "p.signif")
+
+```
+
+
+
+### disgust
+
+
+```{r}
+heidi_SentiArt2 %>%
+  filter(emotion == "disg_z") %>%
+  ggplot(aes(x = type_grouped, y = value_scaled, fill = type_grouped)) +
+  # ylim(-2,2) +
+  # facet_wrap(~ type_grouped, scales = "free_y") +
+  geom_boxplot() +
+  theme_minimal() +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("sentiArt", subtitle = "disgust") +
+  # if unified nat_term and CH_rural
+  stat_compare_means(method = "wilcox.test",
+                     comparisons =                
+                       list(c("NAT", "OTHER")),
+                     na.rm = T,
+                     label = "p.signif")
+
+```
+
+### happyness
+
+
+```{r}
+heidi_SentiArt2 %>%
+  filter(emotion == "hap_z") %>%
+  ggplot(aes(x = type_grouped, y = value_scaled, fill = type_grouped)) +
+  # ylim(-2,2) +
+  # facet_wrap(~ type_grouped, scales = "free_y") +
+  geom_boxplot() +
+  theme_minimal() +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("sentiArt", subtitle = "happiness") +
+  # if unified nat_term and CH_rural
+  stat_compare_means(method = "wilcox.test",
+                     comparisons =                
+                       list(c("NAT", "OTHER")),
+                     na.rm = T,
+                     label = "p.signif")
+
+```
+
+
+### sadness
+
+```{r}
+heidi_SentiArt2 %>%
+  filter(emotion == "sad_z") %>%
+  ggplot(aes(x = type_grouped, y = value_scaled, fill = type_grouped)) +
+  # ylim(-2,2) +
+  # facet_wrap(~ type_grouped, scales = "free_y") +
+  geom_boxplot() +
+  theme_minimal() +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("sentiArt", subtitle = "sadness") +
+  # if unified nat_term and CH_rural
+  stat_compare_means(method = "wilcox.test",
+                     comparisons =                
+                       list(c("NAT", "OTHER")),
+                     na.rm = T,
+                     label = "p.signif")
+
+```
+
+
+### surprise
+
+
+```{r}
+heidi_SentiArt2 %>%
+  filter(emotion == "surp_z") %>%
+  ggplot(aes(x = type_grouped, y = value_scaled, fill = type_grouped)) +
+  # ylim(-2,2) +
+  # facet_wrap(~ type_grouped, scales = "free_y") +
+  geom_boxplot() +
+  theme_minimal() +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("sentiArt", subtitle = "surprise") +
+  # if unified nat_term and CH_rural
+  stat_compare_means(method = "wilcox.test",
+                     comparisons =                
+                       list(c("NAT", "OTHER")),
+                     na.rm = T,
+                     label = "p.signif")
+
+```
+
+
+### anger
+
+```{r}
+
+heidi_SentiArt2 %>%
+  filter(emotion == "ang_z") %>%
+  ggplot(aes(x = type_grouped, y = value_scaled, fill = type_grouped)) +
+  # ylim(-2,2) +
+  # facet_wrap(~ type_grouped, scales = "free_y") +
+  geom_boxplot() +
+  theme_minimal() +
+  theme(axis.title.x = element_blank()) +
+  ggtitle("sentiArt", subtitle = "anger") +
+  # if unified nat_term and CH_rural
+  stat_compare_means(method = "wilcox.test",
+                     comparisons =                
+                       list(c("NAT", "OTHER")),
+                     na.rm = T,
+                     label = "p.signif")
+
+```
+
+
+
+```{r}
+heidi_SentiArt2  %>%
+  # summarise(value = mean(value)) %>%
+  ggplot(aes(x = emotion, y = value_scaled, fill = type_grouped)) +
+  # ylim(-1,1) +
+  # facet_wrap(~ type_grouped, scales = "free_y") +
+  geom_boxplot(position = "dodge") +
+  theme_minimal() +
+  theme(axis.title.x = element_blank())
+
+
+
+```
+
+
+
+
+
+### lmer
+
+```{r}
+sentiart_grouped_heidi_lmer <- lmer(value_scaled ~ type_grouped*emotion +
+                                (1|frequency) +
+                                (1|doc_id),
+                              heidi_SentiArt2, REML = F)
+
+```
+
+
+# mixed models comparison
+
+```{r}
+tab_model(BAWL_grouped_arousal_heidi_lmer,
+  BAWL_grouped_valence_heidi_lmer,
+  BAWL_grouped_imag_heidi_lmer,
+            show.se = T,
+          show.ci = F,
+          show.stat = T,
+          emph.p = T,
+          transform = NULL,
+          string.pred = "Pred",
+          string.stat = "z",
+          string.se = "SE",
+          show.icc = F) %>% 
+    return() %$% 
+    knitr::knitr %>% 
+    knitr::asis_output()
+```
+
+
+LANG_grouped_arousal_heidi_lmer,
+  LANG_grouped_valence_heidi_lmer,
+  LANG_grouped_concr_heidi_lmer,
+  SentiWS_grouped_polarity_heidi_lmer,
+  
+```{r}
+
+tab_model(klinger_grouped_heidi_lmer,
+            show.se = T,
+          show.ci = F,
+          show.stat = T,
+          emph.p = T,
+          transform = NULL,
+          string.pred = "Pred",
+          string.stat = "z",
+          string.se = "SE",
+          show.icc = F) %>% 
+    return() %$% 
+    knitr %>% 
+    knitr::asis_output()
+```
+
+
+```{r}
+tab_model(plutchik_grouped_heidi_lmer,
+            show.se = T,
+          show.ci = F,
+          show.stat = T,
+          emph.p = T,
+          transform = NULL,
+          string.pred = "Pred",
+          string.stat = "z",
+          string.se = "SE",
+          show.icc = F) %>% 
+    return() %$% 
+    knitr::knitr %>% 
+    knitr::asis_output()
+  
+```
+
+
+```{r}
+tab_model(sentiart_grouped_heidi_lmer,
+            show.se = T,
+          show.ci = F,
+          show.stat = T,
+          emph.p = T,
+          transform = NULL,
+          string.pred = "Pred",
+          string.stat = "z",
+          string.se = "SE",
+          show.icc = F) %>% 
+    return() %$% 
+    knitr %>% 
+    knitr::asis_output()
+```
+

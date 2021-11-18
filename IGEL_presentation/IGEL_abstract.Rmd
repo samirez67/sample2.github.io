@@ -1,0 +1,15 @@
+---
+title: 'Emotions and spatial entities: an investigation of "urban" vs. "rural" emotional language in Swiss-German narrative around 1900'
+output: html_notebook
+author: Giulia Grisot
+---
+
+### Abstract
+
+The present paper proposes a pilot analysis of the representation of emotions and sentiments in relation to landscapes, geolocations and named spatial entities in a corpus of Swiss prose texts of the late 19th and early 20th Century written in German.
+
+To examine how geo-entities are depicted emotionally, we used several resources (among others: Wikidata, OpenThesaurus, Ortsnamen) to compile a comprehensive dictionary of natural entities characteristic of 'landscape', and 'urban space'.
+This list is inclusive of spatial entity terms commonly used in the historical context of the corpus (Weiher, Weg, Hütte, Berg, See; Strasse, Gebäude, Dom), as well as of spatial named entities (Berlin, Rhein, Salzburg, Luzern).
+
+Existing sentiment dictionaries (BAWL, SentiWS, SentiArt) are then used to examine the presence of emotions (valence, discrete emotions) and their strength (arousal) in the texts, looking at the difference between the emotions represented in relation to particular types of spatial entities, and offering at the same time an interesting case for comparing the performance of different sentiment lexicons.
+

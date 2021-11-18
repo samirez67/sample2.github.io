@@ -1,0 +1,69 @@
+---
+title: "Test paper - corpus prep"
+author: "Giulia Grisot"
+date: "2020"
+output:
+  html_notebook: 
+    number_sections: no
+    theme: flatly
+---
+
+# Corpus preparation
+
+```{r message=FALSE, warning=F}
+
+library(tidyverse)
+library(tidytext)
+library(sjPlot)
+library(ggsci)
+# library(wesanderson)
+library(wordcloud)
+library(readxl)
+library(plyr)
+
+```
+
+## method 1 Load txt files from a directory and prepare text corpus
+
+```{r}
+
+heidi_sentences <- text_all %>%
+  filter(grepl("heidi", book))
+
+heidi_words <- heidi_sentences %>%
+  unnest_tokens(word, sentence, token = "words", to_lower = F)
+
+```
+
+
+```{r}
+
+heidi_words$book <- as.factor(heidi_words$book)
+
+heidi_words <- heidi_words %>% filter(!(str_detect(word, "\\d"))) #remove rows containing numbers in the word column
+
+
+heidi_sentences$book <- as.factor(heidi_sentences$book)
+
+heidi_sentences <- heidi_sentences %>% filter(!(str_detect(sentence, "\\d"))) #remove rows containing numbers in the word column
+
+```
+
+# heidi names
+
+```{r}
+## indentify proper names
+heidi_names <- c("heidi", "öhi", "clara", "peter", "klara", "großmutter", "großvater", "großmama", "sesemann", "rottenmeier", "sebastian", "alm-öhi")
+
+heidi_names <- as.data.frame(heidi_names)
+heidi_names2 <- heidi_names
+heidi_names2$heidi_names <- str_to_sentence(heidi_names2$heidi_names)
+
+heidi_names <- heidi_names %>%
+  bind_rows(heidi_names2) %>%
+  mutate(word = heidi_names) %>%
+  dplyr::select(-heidi_names)
+
+remove(heidi_names2)
+
+```

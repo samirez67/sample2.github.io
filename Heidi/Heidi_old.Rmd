@@ -1,0 +1,643 @@
+---
+section: "Test Heidi"
+author: "Giulia Grisot"
+date: "2020"
+output:
+  html_notesection: 
+    fig_caption: yes
+    force_captions: yes
+    number_sections: yes
+    theme: flatly
+---
+
+# Corpus preparation
+
+```{r message=FALSE, warning=F}
+
+library(tidyverse)
+library(tidytext)
+library(sjPlot)
+library(ggsci)
+# library(wesanderson)
+library(wordcloud)
+library(readxl)
+
+```
+
+## Load txt files from a directory and prepare text corpus
+
+```{r}
+
+# read in texts (file name must be in the format: surname_section_year.txt)
+# for instructions about how to see:  https://data.library.virginia.edu/a-beginners-guide-to-text-analysis-with-quanteda/
+
+library(epubr)
+
+heidi <- as.data.frame(epub("other_texts/spyri_heidi_1880_2.epub"))
+
+heidi <- unnest(heidi, data)
+
+heidi_txt <- heidi[11:35, ]
+
+```
+
+```{r}
+
+heidi_sentences <- heidi_txt %>%
+  unnest_tokens(sentence, text, token = "sentences", to_lower = F)
+
+heidi <- heidi_txt %>%
+  unnest_tokens(word, text, token = "words", to_lower = F)
+
+```
+
+
+```{r}
+
+heidi <- heidi %>%
+  mutate(type = if_else(nword < 10, "title", "chapter")) %>%
+  mutate(ch_n = as.integer(factor(section, levels = unique(.$section)))) %>%
+  mutate(book = if_else(ch_n < 16, "book1", "book2"))
+
+heidi$book <- as.factor(heidi$book)
+
+heidi <- heidi %>% filter(!(str_detect(word, "\\d"))) #remove rows containing numbers in the word column
+
+
+
+heidi_sentences <- heidi_sentences %>%
+  mutate(type = if_else(nword < 10, "title", "chapter")) %>%
+  mutate(ch_n = as.integer(factor(section, levels = unique(.$section)))) %>%
+  mutate(book = if_else(ch_n < 16, "book1", "book2"))
+
+heidi_sentences$book <- as.factor(heidi_sentences$book)
+
+heidi_sentences <- heidi_sentences %>% filter(!(str_detect(sentence, "\\d"))) #remove rows containing numbers in the word column
+
+```
+
+## Stop words
+
+dataset of german stop words that will then be removed from the corpus
+
+```{r}
+
+stop_german <- tibble(word = stopwords::stopwords("de"))
+stop_german2 <- stop_german
+stop_german2$word <- str_to_sentence(stop_german2$word)
+stop_german <- bind_rows(stop_german, stop_german2)
+remove(stop_german2)
+
+```
+
+
+## Add word/sentence ID and Frequencies 
+
+```{r}
+heidi <- heidi %>%
+  group_by(ch_n) %>%
+  dplyr::mutate(word_id = row_number())
+
+heidi <-  heidi %>%
+  group_by(word) %>%
+  dplyr::mutate(freq = n())
+
+heidi <- heidi %>%
+  select(-publisher, -description, -language, -creator, -title, -identifier, -date, -subject, -nword, -nchar, -contributor)
+```
+
+````{r}
+
+heidi_sentences <- heidi_sentences %>%
+  group_by(ch_n) %>%
+  dplyr::mutate(sentence_id = row_number())
+
+heidi_sentences <-  heidi_sentences %>%
+  group_by(sentence) %>%
+  dplyr::mutate(freq = n())
+
+heidi_sentences <- heidi_sentences %>%
+  select(-publisher, -description, -language, -creator, -title, -identifier, -date, -subject, -nword, -nchar, -contributor)
+
+```
+
+## indentify proper names
+
+```{r}
+
+word <- c("heidi", "öhi", "clara", "peter", "klara", "großmutter", "großvater", "großmama", "sesemann", "rottenmeier", "sebastian")
+up_word <- str_to_sentence(word)
+heidi_names <- c(word, up_word)
+heidi_names <- as.data.frame(heidi_names)
+heidi_names$word <- heidi_names$heidi_names
+heidi_names$heidi_names <- NULL
+
+
+remove(word, up_word)
+
+```
+
+
+
+## Sentiment Dictionaries
+
+### SentiWS
+
+let's alter the SentiWS dictionary to include all forms of the different tokens
+
+```{r}
+
+sentiWS <- pradadata::sentiws
+sentiWS_long <- unnest_tokens(sentiWS, word2, inflections, to_lower = F)
+
+# there are some empty rows in word2 column, which should be the same as word. let's fill the gaps.
+
+sentiWS_long <- sentiWS_long %>%
+  mutate(word2 = coalesce(word2, word))
+
+sentiWS_long$word <- tolower(sentiWS_long$word2)
+
+sentiWS_long$word2 <- NULL
+
+sentiWS_long <- sentiWS_long %>%
+  rename(SentiWS_neg_pos = neg_pos) %>%
+  rename(SentiWS_polarity = value)
+
+remove(sentiWS)
+
+```
+
+### Glex
+
+```{r}
+glex <- pradadata::germanlex
+glex <- glex %>%
+  rename(glex_neg_pos = qualifier) %>%
+  rename(glex_polarity = polarity_strength)
+
+# there seem to be a few words that are not right in the dataset. let's take them out
+
+glex <- filter(glex, word != "%%")
+
+glex$word <- tolower(glex$word)
+glex$glex_neg_pos <- tolower(glex$glex_neg_pos)
+
+```
+
+### SentiART
+
+```{r}
+sentiart <- read.csv("SA_resources/SentiArt.dat", dec = ",")
+
+sentiart_long <- sentiart %>%
+  select(-1, -AAPz) %>%
+  gather(emotion, value, -word)
+
+sentiart_long_top <- sentiart_long %>% 
+  group_by(word) %>% 
+  slice_max(value)
+
+```
+
+### Plutchnik
+
+```{r, message=F}
+
+plutchik <- read_csv("SA_resources/Plutchik_Emotionslexikon.csv")
+plutchik <- plutchik %>%
+  filter(!is.na(Wortart)) %>%
+  filter(!is.na(word))
+
+```
+
+### LANG
+
+```{r, message=F}
+LANG_processed <- read_table2("SA_resources/LANG_processed.csv")
+```
+
+### BAWL
+
+```{r, message=F}
+BAWL <- read_csv("SA_resources/BAWL-R.csv")
+```
+
+# Analysis
+
+## Frequencies
+
+### Most frequent words
+
+```{r fig.height=7, fig.width=12, message=FALSE, warning=FALSE}
+fs = 12 # default plot font size
+
+
+heidi %>%
+  anti_join(stop_german, by = "word") %>% # delete stopwords
+  anti_join(heidi_names, by = "word") %>%
+  count() %>%
+# summarize count per word per section
+  arrange(desc(n)) %>%
+# highest freq on top
+  head(50) %>%
+  print()
+  
+```
+
+### Most frequent words by book plot
+
+```{r fig.height=5, fig.width=10, message=FALSE, warning=FALSE}
+fs = 12 # default plot font size
+
+
+heidi %>%
+  group_by(book, word) %>%
+  anti_join(stop_german, by = "word") %>% # delete stopwords
+  anti_join(heidi_names, by = "word") %>%
+  count() %>%
+# summarize count per word per book
+  arrange(desc(n)) %>%
+# highest freq on top
+  group_by(book) %>% # 
+  mutate(top = seq_along(word)) %>%  # identify rank within group
+  filter(top <= 15) %>% # retain top 15 frequent words
+  # create barplot
+  ggplot(aes(x = -top, fill = as.factor(book))) + 
+  geom_bar(aes(y = n), stat = 'identity', col = 'black') +
+  # make sure words are printed either in or next to bar
+  geom_text(aes(y = ifelse(n > max(n) / 2, max(n) / 50, n + max(n) / 50),
+                label = word), size = fs/3, hjust = "left") +
+  theme_sjplot2() +
+  theme(legend.position = 'none', # get rid of legend
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5), # rotate x text
+        axis.ticks.y = element_blank(), # remove y ticks
+        axis.text.y = element_blank()) + # remove y text
+  labs(y = "Word count", x = "", # add labels
+       title = "Most frequent words throughout works") +
+  facet_grid(. ~ book) + # separate plot for each section
+  coord_flip() + # flip axes
+  scale_fill_sjplot()
+  
+```
+
+### Most frequent words by section plot
+
+```{r fig.height=7, fig.width=12, message=FALSE, warning=FALSE}
+
+heidi %>%
+  filter(type != "title") %>%
+  group_by(book, ch_n, word) %>%
+  anti_join(stop_german, by = "word") %>% # delete stopwords
+  anti_join(heidi_names, by = "word") %>%
+  count() %>%
+# summarize count per word per ch_n
+  arrange(desc(n)) %>%
+# highest freq on top
+  group_by(ch_n) %>% # 
+  mutate(top = seq_along(word)) %>%  # identify rank within group
+  filter(top <= 15) %>% # retain top 15 frequent words
+  # create barplot
+  ggplot(aes(x = -top, fill = as.factor(ch_n))) + 
+  geom_bar(aes(y = n), stat = 'identity', col = 'black') +
+  # make sure words are printed either in or next to bar
+  geom_text(aes(y = ifelse(n > max(n) / 2, max(n) / 50, n + max(n) / 50),
+                label = word), size = fs/3, hjust = "left") +
+  theme_sjplot2() +
+  theme(legend.position = 'none', # get rid of legend
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5), # rotate x text
+        axis.ticks.y = element_blank(), # remove y ticks
+        axis.text.y = element_blank()) + # remove y text
+  labs(y = "Word count", x = "", # add labels
+       title = "Most frequent words throughout works") +
+  facet_grid(. ~ ch_n) + # separate plot for each section
+  coord_flip() + # flip axes
+  scale_fill_sjplot()
+  
+```
+
+
+## Sentiments and Emotions by dictionary
+
+
+### SentiWS
+
+```{r}
+# heidi %>% 
+#   anti_join(stop_german, by = "word") %>% # delete stopwords
+#   anti_join(heidi_names, by = "word") %>%
+#   left_join(sentiWS_long, by = "word") %>%
+#   group_by(ch_n, SentiWS_neg_pos) %>%
+#   summarize(value = sum(SentiWS_polarity), # summarize AFINN values
+#             count = n(), # summarize bing and nrc counts
+#             # move bing and nrc counts to value 
+#             value = ifelse(is.na(value), count, value)) %>%
+#   filter(SentiWS_neg_pos %in% c('pos','neg'))  %>% # only retain bipolar sentiment
+#   #mutate(value = ifelse(SentiWS_neg_pos == 'neg', -value, value))
+# # reverse negative values
+#   # create area plot
+#   # ggplot(aes(x = ch_n, y = value, fill = SentiWS_neg_pos, color = SentiWS_neg_pos)) +    
+#   # geom_area() +
+#   # scale_fill_npg()
+#   ggplot(aes(x = ch_n, y = value, fill = SentiWS_neg_pos)) +    
+#   geom_col() +
+#   scale_fill_sjplot() + # change colors
+#   # add black smoothed line without standard error
+#   #geom_smooth(method = "loess", se = F, col = "black") + 
+#   theme(legend.position = 'right', # remove legend
+#         text = element_text(size = fs)) + # change font size
+#   labs(x = "ch_n", y = "Sentiment value", # add labels
+#        title = "Heidi: SA using tidytext and the SentiWS dictionary")
+
+```
+
+#### sentiments
+
+```{r}
+heidi %>% 
+  anti_join(stop_german, by = "word") %>% # delete stopwords
+  anti_join(heidi_names, by = "word") %>%
+  left_join(sentiWS_long, by = "word") %>%
+  group_by(ch_n, SentiWS_neg_pos) %>%
+  summarize(value = sum(SentiWS_polarity), # summarize AFINN values
+            count = n(), # summarize counts
+            # move counts to value 
+            value = ifelse(is.na(value), count, value)) %>%
+  filter(SentiWS_neg_pos %in% c('pos','neg')) %>%   # only retain bipolar sentiment
+  # create area plot
+  ggplot(aes(x = ch_n, y = value)) +    
+  geom_bar(aes(fill = SentiWS_neg_pos),stat = 'identity') +
+  scale_fill_jama() +
+  #scale_fill_manual(values = wes_palette("Royal1")) + # change colors
+  # add black smoothed line without standard error
+  #geom_smooth(method = "loess", se = F, col = "black") + 
+  theme(legend.position = 'right', # remove legend
+        text = element_text(size = fs)) + # change font size
+  labs(x = "ch_n", y = "Sentiment value",
+       title = "Heidi: SA using SentiWS dictionary")
+
+```
+#### Visualise pos/neg trends SentiWS
+
+```{r fig.height=12, fig.width=15, message=FALSE, warning=FALSE}
+
+heidi %>% 
+  anti_join(stop_german, by = "word") %>% 
+  anti_join(heidi_names, by = "word") %>%
+  left_join(sentiWS_long) %>%
+  group_by(SentiWS_neg_pos,
+           book,
+           word_id) %>%
+  summarize(value = sum(SentiWS_polarity), # summarize values
+            count = n(), # summarize counts
+            value = ifelse(is.na(value), count, value))  %>%
+  # filter(SentiWS_neg_pos %in% c('positive','pos')) %>%   # only retain bipolar sentiment
+  mutate(value = ifelse(SentiWS_neg_pos == 'neg', -value, value)) %>% # reverse negative values
+  # create area plot
+  ggplot(aes(x = word_id, y = value)) +    
+  geom_area(aes(fill = value > 0),stat = 'identity') +
+  scale_fill_sjplot() + # change colors
+  # add black smoothed line without standard error
+  geom_smooth(method = "loess", se = F, col = "black") + 
+  theme(legend.position = 'none', # remove legend
+        text = element_text(size = fs)) + # change font size
+  labs(x = "Chapter", y = "Sentiment value", # add labels
+       title = "Heidi: Sentiment during the books",
+       subtitle = "Using SentiWS dictionary") +
+     # separate plot per book and dictionary and free up x-axes
+  facet_wrap( ~ book, scale = "free_x")
+```
+
+
+```{r}
+heidi %>% 
+  anti_join(stop_german, by = "word") %>% 
+  anti_join(heidi_names, by = "word") %>%
+  left_join(sentiWS_long) %>%
+  group_by(SentiWS_neg_pos, book, ch_n) %>%
+  summarize(value = sum(SentiWS_polarity), # summarize values
+            count = n(), # summarize counts
+            value = ifelse(is.na(value), count, value))  %>%
+  filter(SentiWS_neg_pos %in% c('positive','pos')) %>%   # only retain bipolar sentiment
+  mutate(value = ifelse(SentiWS_neg_pos == 'neg', -value, value)) %>% # reverse negative values
+  # create area plot
+  ggplot(aes(x = ch_n, y = value)) +    
+  geom_area(aes(fill = value > 0),stat = 'identity') +
+  scale_fill_sjplot() + # change colors
+  # add black smoothed line without standard error
+  geom_smooth(method = "loess", se = F, col = "black") + 
+  theme(legend.position = 'none', # remove legend
+        text = element_text(size = fs)) + # change font size
+  labs(x = "Chapter", y = "Sentiment value", # add labels
+       title = "Heidi: Sentiment during the books",
+       subtitle = "Using SentiWS dictionary") +
+     # separate plot per book and dictionary and free up x-axes
+  facet_wrap( ~ book, scale = "free_x")
+```
+
+
+### SentiART
+
+#### sentiments
+
+```{r}
+heidi %>% 
+  left_join(sentiart, by = "word") %>%
+  anti_join(stop_german, by = "word") %>% # delete stopwords
+  anti_join(heidi_names, by = "word") %>%
+  mutate(sentiart_neg_pos = ifelse(AAPz > 0, "pos", "neg")) %>%
+  group_by(ch_n, sentiart_neg_pos) %>%
+  summarize(value = sum(AAPz), # summarize AAPz values
+            count = n(), # summarize counts
+            # move counts to value 
+            value = ifelse(is.na(value), count, value)) %>%
+  filter(sentiart_neg_pos %in% c('pos','neg')) %>%   # only retain bipolar sentiment
+  # create area plot
+  ggplot(aes(x = ch_n, y = value, fill = sentiart_neg_pos)) +    
+  geom_bar(stat = 'identity') +
+  scale_fill_jama() + # change colors
+  # add black smoothed line without standard error
+  #geom_smooth(method = "loess", se = F, col = "black") + 
+  theme(legend.position = 'right', # remove legend
+        text = element_text(size = fs)) + # change font size
+  labs(x = "ch_n", y = "Sentiment value",
+       title = "Heidi: SA using SenitiART dictionary")
+
+```
+
+#### emotions
+
+```{r}
+heidi %>% 
+  anti_join(stop_german, by = "word") %>% # delete stopwords
+  anti_join(heidi_names, by = "word") %>%
+  left_join(sentiart_long, by = "word") %>%
+  group_by(book, emotion) %>%
+  filter(!is.na(emotion)) %>%
+  summarise(count = sum(value)) %>%
+  ggplot(aes(x = emotion, y = count, fill = emotion)) +    
+  geom_bar(stat = 'identity') +
+  scale_fill_jco() + # change colors
+  # add black smoothed line without standard error
+  #geom_smooth(method = "loess", se = F, col = "black") + 
+  theme(legend.position = 'right', # remove legend
+        text = element_text(size = fs)) + # change font size
+  labs(x = "Emotions", y = "Value",
+       title = "Heidi: SA using SentiART dictionary") +
+  facet_grid(. ~ book, scales = "free")
+
+```
+
+#### Words carrying strongest emotions SentiART
+
+```{r fig.height=7, fig.width=10}
+heidi %>% 
+  anti_join(stop_german, by = "word") %>% 
+  anti_join(heidi_names, by = "word") %>%
+  left_join(sentiart_long_top) %>%
+  group_by(word, emotion) %>%
+  count() %>% # summarize count per word per sentiment
+  group_by(emotion) %>%
+  arrange(emotion, desc(n)) %>% # most frequent on top
+  mutate(top = seq_along(word)) %>% # identify rank within group
+  filter(top <= 15) %>% # keep top 15 frequent words
+  ggplot(aes(x = -top, fill = factor(emotion))) + 
+  # create barplot
+  geom_bar(aes(y = n), stat = 'identity', col = 'black') +
+  # make sure words are printed either in or next to bar
+  geom_text(aes(y = ifelse(n > max(n) / 2, max(n) / 50, n + max(n) / 50),
+                label = word), size = fs/3, hjust = "left") +
+  theme_sjplot2() +
+  scale_fill_jco() +
+  theme(legend.position = 'none', # remove legend
+        text = element_text(size = fs), # determine fs
+        axis.text.x = element_text(angle = 45, hjust = 1), # rotate x text
+        axis.ticks.y = element_blank(), # remove y ticks
+        axis.text.y = element_blank()) + # remove y text
+  labs(y = "Word count", x = "", # add manual labels
+       title = "Words carrying strongest emotions") +
+  facet_grid(. ~ emotion) + # separate plot for each sentiment
+  coord_flip() # flip axes
+
+```
+
+
+### Plutchnik
+
+#### emotions
+
+```{r}
+heidi %>%
+  anti_join(stop_german, by = "word") %>% # delete stopwords
+  anti_join(heidi_names, by = "word") %>%
+  left_join(plutchik, by = "word") %>%
+  group_by(book, emotion) %>%
+  filter(!is.na(emotion)) %>%
+  summarize(count = n()) %>%
+  ggplot(aes(x = emotion, y = count, fill = emotion)) +    
+  geom_bar(stat = 'identity') +
+  scale_fill_jco() + # change colors
+  # add black smoothed line without standard error
+  #geom_smooth(method = "loess", se = F, col = "black") + 
+  theme(legend.position = 'right', # remove legend
+        text = element_text(size = fs)) + # change font size
+  labs(x = "Emotions", y = "Value",
+       title = "Heidi: SA using Plutchnik dictionary") +
+  facet_grid(. ~ book, scales = "free")
+
+```
+#### Words carrying strongest emotions Plutchnik
+
+```{r fig.height=7, fig.width=10}
+heidi %>% 
+  anti_join(stop_german, by = "word") %>% 
+  anti_join(heidi_names, by = "word") %>%
+  left_join(plutchik) %>%
+  group_by(word, emotion) %>%
+  count() %>% # summarize count per word per sentiment
+  group_by(emotion) %>%
+  arrange(emotion, desc(n)) %>% # most frequent on top
+  mutate(top = seq_along(word)) %>% # identify rank within group
+  filter(top <= 15) %>% # keep top 15 frequent words
+  ggplot(aes(x = -top, fill = factor(emotion))) + 
+  # create barplot
+  geom_bar(aes(y = n), stat = 'identity', col = 'black') +
+  # make sure words are printed either in or next to bar
+  geom_text(aes(y = ifelse(n > max(n) / 2, max(n) / 50, n + max(n) / 50),
+                label = word), size = fs/3, hjust = "left") +
+  theme_sjplot2() +
+  scale_fill_jco() +
+  theme(legend.position = 'none', # remove legend
+        text = element_text(size = fs), # determine fs
+        axis.text.x = element_text(angle = 45, hjust = 1), # rotate x text
+        axis.ticks.y = element_blank(), # remove y ticks
+        axis.text.y = element_blank()) + # remove y text
+  labs(y = "Word count", x = "", # add manual labels
+       title = "Words carrying strongest emotions") +
+  facet_grid(. ~ emotion, scales = "free") + # separate plot for each sentiment
+  coord_flip() # flip axes
+
+
+```
+let's see a table version of the words (top 10 per emotion)
+
+```{r}
+# heidi %>% 
+#   anti_join(stop_german, by = "word") %>% 
+#   anti_join(heidi_names, by = "word") %>%
+#   left_join(plutchik) %>%
+#   group_by(word, emotion) %>%
+#   count() %>% # summarize count per word per sentiment
+#   group_by(emotion) %>%
+#   arrange(emotion, desc(n)) %>% # most frequent on top
+#   mutate(top = seq_along(word)) %>% # identify rank within group
+#   filter(top <= 10, !is.na(emotion)) %>%
+#   sjPlot::tab_df() %>% 
+#   return() %$% 
+#   knitr %>% 
+#   knitr::asis_output()
+
+```
+
+
+## Wordcloud
+
+Although wordclouds are not my favorite visualizations, they do allow for a quick display of frequencies among a large body of words.
+
+```{r fig.height=7, fig.width=10, message=FALSE, warning=FALSE}
+
+heidi %>%
+  anti_join(stop_german, by = "word") %>% # delete stopwords
+  anti_join(heidi_names, by = "word") %>%
+  group_by(word) %>%
+  count() %>% # summarize count per word
+  mutate(log_n = sqrt(n)) %>% # take root to decrease outlier impact
+  with(wordcloud(word, log_n, max.words = 50,
+                 min.freq = 2,
+                 random.order=FALSE,
+                 rot.per=0.35,
+                 colors=brewer.pal(8, "Dark2")))
+
+
+```
+
+
+```{r fig.height=12, fig.width=15, message=FALSE, warning=FALSE}
+
+# heidi %>%
+#   anti_join(stop_german, by = "word") %>% 
+#   anti_join(heidi_names, by = "word") %>%
+#   left_join(sentiWS_long) %>%
+#   group_by(ch_n) %>%
+#   group_by(SentiWS_neg_pos) %>%
+#   ggplot(aes(x = ch_n, y = SentiWS_polarity, fill = SentiWS_neg_pos)) + 
+#   geom_bar(stat = "identity") +
+#   geom_line() +
+#   facet_wrap( ~ book, scales = "free") +
+#   scale_fill_jama()
+  
+```
+
+
+## Geolocations & NER
+
+

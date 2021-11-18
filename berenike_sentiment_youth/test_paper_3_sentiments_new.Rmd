@@ -1,0 +1,897 @@
+---
+title: "Test paper - sentiments"
+author: "Giulia Grisot"
+date: "2020"
+output:
+  html_notebook: 
+    theme: flatly
+    fig_width: 10
+    fig_height: 7
+---
+
+# Corpus preparation
+
+```{r message=FALSE, warning=F}
+library(tidyverse)
+# library(harrypotter)
+library(lme4)
+library(tidytext)
+library(sjPlot)
+library(ggplot2)
+library(ggsci)
+library(ggpubr)
+
+```
+
+# make corpus by word 
+
+```{r}
+ corpus_all_entities_long <- corpus_all_entities %>%
+  unnest_tokens(word, text, to_lower = F) %>%
+  group_by(doc_id) %>%
+  dplyr::mutate(word_id = row_number()) %>%
+  group_by(word) %>%
+  dplyr::mutate(freqency = n()) %>%
+  ungroup()
+# %>%
+#   mutate(type = ifelse(type == "CH_urban", "urban", "rural"))
+# mutate(urban_rural = ifelse(type == "CH_city_village" | type == "CH_building_spots" | type == "CH_country_regions" | type == "CH_roads", "urban", "rural"))
+
+```
+
+since natural terms are part of the rural sphere, let's unify nat term and rural labels:
+```{r}
+corpus_all_entities_long$type[corpus_all_entities_long$type == "nat_terms"] <- "CH_rural"
+
+```
+
+
+```{r}
+theme_set(theme_light()) # set default ggplot theme to light
+fs = 10 # default plot font size
+```
+
+# Freq per book
+
+```{r}
+corpus_all_entities_long[,c("title","word")]  %>%
+  group_by(title, word) %>%
+  anti_join(stop_german, by = "word") %>% # delete stopwords
+  count() %>% # summarize count per word per title
+  arrange(desc(n)) %>% # highest freq on top
+  group_by(title) %>% # 
+  mutate(top = seq_along(word)) %>% # identify rank within group
+  filter(top <= 15) %>% # retain top 15 frequent words
+  # create barplot
+  ggplot(aes(x = -top, fill = title)) + 
+  geom_bar(aes(y = n), stat = 'identity', col = 'black') +
+  # make sure words are printed either in or next to bar
+  geom_text(aes(y = ifelse(n > max(n) / 2, max(n) / 50, n + max(n) / 50),
+                label = word), size = fs/3, hjust = "left") +
+  theme_sjplot2() +
+  theme(legend.position = 'none', # get rid of legend
+        text = element_text(size = fs), # determine fs
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5), # rotate x text
+        axis.ticks.y = element_blank(), # remove y ticks
+        axis.text.y = element_blank()) + # remove y text
+  labs(y = "Word count", x = "", # add labels
+       title = "Most frequent words by book") +
+  facet_grid(. ~ title) + # separate plot for each book
+  coord_flip() + # flip axes
+  # scale_fill_hp(discrete = T, option = "Always")
+  scale_fill_simpsons()
+
+```
+
+# Freq per entity type
+
+```{r}
+
+corpus_all_entities_long[,c("type","word")]  %>%
+  group_by(type, word) %>%
+  anti_join(stop_german, by = "word") %>% # delete stopwords
+  count() %>% # summarize count per word per title
+  arrange(desc(n)) %>% # highest freq on top
+  group_by(type) %>% # 
+  mutate(top = seq_along(word)) %>% # identify rank within group
+  filter(top <= 15) %>% # retain top 15 frequent words
+  # create barplot
+  ggplot(aes(x = -top, fill = type)) + 
+  geom_bar(aes(y = n), stat = 'identity', col = 'black') +
+  # make sure words are printed either in or next to bar
+  geom_text(aes(y = ifelse(n > max(n) / 2, max(n) / 50, n + max(n) / 50),
+                label = word), size = fs/3, hjust = "left") +
+  theme_sjplot2() +
+  theme(legend.position = 'none', # get rid of legend
+        text = element_text(size = fs), # determine fs
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5), # rotate x text
+        axis.ticks.y = element_blank(), # remove y ticks
+        axis.text.y = element_blank()) + # remove y text
+  labs(y = "Word count", x = "", # add labels
+       title = "Most frequent words by type") +
+  facet_grid(. ~ type) + # separate plot for each book
+  coord_flip() + # flip axes
+  # scale_fill_hp(discrete = T, option = "Always")
+  scale_fill_simpsons()
+
+```
+
+# Sentiments by type
+
+## BAWL 
+
+```{r}
+
+corpus_BAWL <- corpus_all_entities_long %>%
+  anti_join(stop_german, by = "word") %>%
+  left_join(BAWL_emotions, by = "word")
+
+```
+
+
+### arousal
+
+```{r}
+corpus_BAWL %>%
+  # summarise(value = mean(value)) %>%
+  ggplot(aes(x = type, y = arousal, fill = type)) +
+  # ylim(-2,2) +
+  # facet_wrap(~ type, scales = "free_y") +
+  geom_boxplot() +
+  theme_sjplot2() +
+  theme(legend.position = 'none', # get rid of legend
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5)) + 
+  scale_fill_simpsons() +
+    ggpubr::stat_compare_means(method = "wilcox.test",
+                             comparisons = list(c("CH_rural", "CH_urban")),
+                             na.rm = T,
+                             label = "p.signif")
+```
+
+```{r}
+
+Rmisc::summarySE(corpus_BAWL, measurevar = "arousal",
+          groupvars = c("type"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+```{r}
+
+compare_means(arousal ~ type, data = corpus_BAWL, method = "wilcox.test")
+
+
+```
+
+```{r}
+BAWL_arousal_lmer <- lmer(arousal ~ type + log(freqency) +
+                            (1|title),
+                          corpus_BAWL, REML = F)
+
+summary(BAWL_arousal_lmer)
+
+```
+
+
+### valence
+
+```{r}
+corpus_BAWL  %>%
+  # summarise(value = mean(value)) %>%
+  ggplot(aes(x = type, y = valence, fill = type)) +
+  # ylim(-2,2) +
+  # facet_wrap(~ type, scales = "free_y") +
+  geom_boxplot() +
+  theme_sjplot2() +
+  theme(legend.position = 'none', # get rid of legend
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5)) + 
+  scale_fill_simpsons() +
+    ggpubr::stat_compare_means(method = "wilcox.test",
+                             comparisons = list(c("CH_rural", "CH_urban")),
+                             na.rm = T,
+                             label = "p.signif")
+```
+
+```{r}
+
+Rmisc::summarySE(corpus_BAWL, measurevar = "valence",
+          groupvars = c("type"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+```{r}
+
+compare_means(valence ~ type, data = corpus_BAWL, method = "wilcox.test")
+
+
+```
+
+```{r}
+BAWL_valence_lmer <- lmer(valence ~ type + log(freqency) +
+       (1|title),
+     corpus_BAWL, REML = F)
+
+summary(BAWL_valence_lmer)
+```
+
+### imageability
+
+```{r}
+corpus_BAWL  %>%
+  # summarise(value = mean(value)) %>%
+  ggplot(aes(x = type, y = imageability, fill = type)) +
+  # ylim(-2,2) +
+  # facet_wrap(~ type, scales = "free_y") +
+  geom_boxplot() +
+  theme_sjplot2() +
+  theme(legend.position = 'none', # get rid of legend
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5)) + 
+  scale_fill_simpsons() +
+    ggpubr::stat_compare_means(method = "wilcox.test",
+                             comparisons = list(c("CH_rural", "CH_urban")),
+                             na.rm = T,
+                             label = "p.signif")
+```
+
+```{r}
+
+Rmisc::summarySE(corpus_BAWL, measurevar = "imageability",
+          groupvars = c("type"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+```{r}
+
+compare_means(imageability ~ type, data = corpus_BAWL, method = "wilcox.test")
+
+
+```
+
+```{r}
+BAWL_imag_lmer <- lmer(imageability ~ type + log(freqency) +
+       (1|title),
+     corpus_BAWL, REML = F)
+
+summary(BAWL_imag_lmer)
+```
+
+## SentiWS 
+
+```{r}
+
+corpus_sentiWS <- corpus_all_entities_long %>%
+  anti_join(stop_german, by = "word") %>%
+  left_join(sentiWS_long, by = "word")
+
+```
+
+
+### polarity
+
+```{r}
+corpus_sentiWS %>%
+  # summarise(value = mean(value)) %>%
+  ggplot(aes(x = type, y = SentiWS_polarity, fill = type)) +
+  # ylim(-2,2) +
+  # facet_wrap(~ type, scales = "free_y") +
+  geom_boxplot() +
+  theme_sjplot2() +
+  theme(legend.position = 'none', # get rid of legend
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5)) + 
+  scale_fill_simpsons() +
+    ggpubr::stat_compare_means(method = "wilcox.test",
+                             comparisons = list(c("CH_rural", "CH_urban")),
+                             na.rm = T,
+                             label = "p.signif")
+                             
+    # ggpubr::stat_compare_means(method = "wilcox.test", 
+                               # aes(group = type), 
+                             # label = "p.signif", 
+                             # label.x = 1.5, na.rm = TRUE)
+```
+
+```{r}
+
+Rmisc::summarySE(corpus_sentiWS, measurevar = "SentiWS_polarity",
+          groupvars = c("type"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+```{r}
+
+compare_means(SentiWS_polarity ~ type, data = corpus_sentiWS, method = "wilcox.test")
+
+
+```
+
+```{r}
+SentiWS_polarity_lmer <- lmer(SentiWS_polarity ~ type + log(freqency) +
+                            (1|title),
+     corpus_sentiWS, REML = F)
+
+summary(SentiWS_polarity_lmer)
+
+```
+
+## LANG 
+
+```{r}
+
+corpus_LANG <- corpus_all_entities_long %>%
+  anti_join(stop_german, by = "word") %>%
+ left_join(LANG_processed, by = "word")
+
+# ks.test(corpus_LANG$arousal_mean, "pnorm", mean=mean(corpus_LANG$arousal_mean), sd=sd(corpus_LANG$arousal_mean))
+# ks.test(corpus_LANG$valence_mean, "pnorm", mean=mean(corpus_LANG$valence_mean), sd=sd(corpus_LANG$valence_mean))
+# 
+
+# ggplot(corpus_LANG, aes(arousal_mean)) +
+#   geom_histogram()
+# ggplot(corpus_LANG, aes(valence_mean)) +
+#   geom_histogram()
+
+```
+
+
+### arousal
+
+```{r}
+corpus_LANG %>%
+  # summarise(value = mean(value)) %>%
+  ggplot(aes(x = type, y = arousal_mean, fill = type)) +
+  # ylim(-2,2) +
+  # facet_wrap(~ type, scales = "free_y") +
+  geom_boxplot() +
+  theme_sjplot2() +
+  theme(legend.position = 'none', # get rid of legend
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5)) + 
+  scale_fill_simpsons() +
+    ggpubr::stat_compare_means(method = "wilcox.test",
+                             comparisons = list(c("CH_rural", "CH_urban")),
+                             na.rm = T,
+                             label = "p.signif")
+                             
+    # ggpubr::stat_compare_means(method = "wilcox.test", 
+                               # aes(group = type), 
+                             # label = "p.signif", 
+                             # label.x = 1.5, na.rm = TRUE)
+```
+
+```{r}
+
+Rmisc::summarySE(corpus_LANG, measurevar = "arousal_mean",
+          groupvars = c("type"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+```{r}
+
+compare_means(arousal_mean ~ type, data = corpus_LANG, method = "wilcox.test")
+
+
+```
+
+```{r}
+LANG_arousal_lmer <- lmer(arousal_mean ~ type + log(freqency) +
+                            (1|title),
+     corpus_LANG, REML = F)
+
+summary(LANG_arousal_lmer)
+
+```
+
+### valence
+
+```{r}
+corpus_LANG %>%
+  # summarise(value = mean(value)) %>%
+  ggplot(aes(x = type, y = valence_mean, fill = type)) +
+  # ylim(-2,2) +
+  # facet_wrap(~ type, scales = "free_y") +
+  geom_boxplot() +
+  theme_sjplot2() +
+  theme(legend.position = 'none', # get rid of legend
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5)) + 
+  scale_fill_simpsons() +
+    ggpubr::stat_compare_means(method = "wilcox.test",
+                             comparisons = list(c("CH_rural", "CH_urban")),
+                             na.rm = T,
+                             label = "p.signif")
+                             
+    # ggpubr::stat_compare_means(method = "wilcox.test", 
+                               # aes(group = type), 
+                             # label = "p.signif", 
+                             # label.x = 1.5, na.rm = TRUE)
+```
+
+```{r}
+
+Rmisc::summarySE(corpus_LANG, measurevar = "valence_mean",
+          groupvars = c("type"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+```{r}
+
+compare_means(valence_mean ~ type, data = corpus_LANG, method = "wilcox.test")
+
+
+```
+
+```{r}
+LANG_arousal_lmer <- lmer(arousal_mean ~ type + log(freqency) +
+                            (1|title),
+     corpus_LANG, REML = F)
+
+summary(LANG_arousal_lmer)
+
+```
+
+## Klinger
+
+```{r}
+corpus_klinger <- corpus_all_entities_long %>%
+  anti_join(stop_german, by = "word") %>%
+  left_join(klinger, by = "word")
+
+```
+
+
+### emotions
+
+```{r}
+
+corpus_klinger %>%
+  group_by(title, emotion) %>%
+  filter(!is.na(emotion)) %>%
+  summarize(count = n()) %>%
+  ggplot(aes(x = emotion, y = count, fill = emotion)) +    
+  geom_bar(stat = 'identity') +
+  theme_sjplot2() +
+  theme(legend.position = 'none', # get rid of legend
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5)) + 
+  scale_fill_simpsons()
+
+```
+
+### Words carrying strongest emotions Plutchnik
+
+```{r fig.height=7, fig.width=10}
+
+corpus_klinger %>% 
+  group_by(word, emotion) %>%
+  count() %>% # summarize count per word per sentiment
+  group_by(emotion) %>%
+  arrange(emotion, desc(n)) %>% # most frequent on top
+  mutate(top = seq_along(word)) %>% # identify rank within group
+  filter(top <= 15) %>% # keep top 15 frequent words
+  ggplot(aes(x = -top, fill = factor(emotion))) + 
+  # create barplot
+  geom_bar(aes(y = n), stat = 'identity', col = 'black') +
+  # make sure words are printed either in or next to bar
+  geom_text(aes(y = ifelse(n > max(n) / 2, max(n) / 50, n + max(n) / 50),
+                label = word), size = fs/3, hjust = "left") +
+  theme_sjplot2() +
+  scale_fill_jco() +
+  theme(legend.position = 'none', # remove legend
+        text = element_text(size = fs), # determine fs
+        axis.text.x = element_text(angle = 45, hjust = 1), # rotate x text
+        axis.ticks.y = element_blank(), # remove y ticks
+        axis.text.y = element_blank()) + # remove y text
+  labs(y = "Word count", x = "", # add manual labels
+       title = "Words carrying strongest emotions") +
+  facet_grid(. ~ emotion, scales = "free") + # separate plot for each sentiment
+  coord_flip() # flip axes
+
+
+```
+
+
+```{r}
+summary(corpus_klinger)
+```
+
+```{r}
+corpus_klinger %>%
+  filter(!is.na(emotion)) %>%
+  ggplot(aes(emotion, fill = type)) +
+  geom_bar(stat = "count", position = "dodge", show.legend = T) +
+  theme_sjplot2() +
+  scale_fill_simpsons() +
+  theme(legend.position = "bottom",
+        text = element_text(size = fs), # determine fs
+        axis.text.x = element_text(angle = 45, hjust = 1) # rotate x text
+        )
+```
+
+
+
+```{r}
+
+# corpus_plutchik <- corpus_plutchik %>%
+#   group_by(type, emotion) %>%
+#   mutate(emotion_proportion = n()) %>%
+#   ungroup()
+# 
+# corpus_plutchik <- corpus_plutchik %>%
+#   group_by(type) %>%
+#   mutate(emotion_proportion2 = n()) %>%
+#   ungroup()
+# 
+# corpus_plutchik <- corpus_plutchik %>%
+#   mutate(emotion_proportion = emotion_proportion/emotion_proportion2*100)
+# 
+# corpus_plutchik$emotion_proportion2 <- NULL
+
+
+
+
+ggplot(corpus_klinger, aes(emotion, fill = type)) +
+  geom_bar(stat = "count", position = "fill") +
+  theme_sjplot2() +
+  scale_fill_simpsons() +
+  theme(legend.position = "bottom",
+        text = element_text(size = fs), # determine fs
+        axis.text.x = element_text(angle = 45, hjust = 1) # rotate x text
+        )
+
+
+```
+
+
+```{r}
+corpus_klinger %>%
+  filter(!is.na(emotion)) %>%
+  ggplot(aes(emotion, fill = type)) +
+  geom_histogram(stat = "count", position = "dodge") +
+  facet_wrap(. ~ title, scales = "free_y")  +
+  theme_sjplot2() +
+  scale_fill_simpsons() +
+  theme(legend.position = "bottom",
+        text = element_text(size = fs), # determine fs
+        axis.text.x = element_text(angle = 45, hjust = 1) # rotate x text
+        )
+
+```
+
+## Plutchnik
+
+```{r}
+corpus_plutchik <- corpus_all_entities_long %>%
+  anti_join(stop_german, by = "word") %>%
+  left_join(plutchik, by = "word")
+
+```
+
+
+### emotions
+
+```{r}
+
+corpus_plutchik %>%
+  
+  group_by(title, emotion) %>%
+  filter(!is.na(emotion)) %>%
+  summarize(count = n()) %>%
+  ggplot(aes(x = emotion, y = count, fill = emotion)) +    
+  geom_bar(stat = 'identity') +
+  theme_sjplot2() +
+  theme(legend.position = 'none', # get rid of legend
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5)) + 
+  scale_fill_simpsons()
+
+```
+
+### Words carrying strongest emotions Plutchnik
+
+```{r fig.height=7, fig.width=10}
+
+corpus_plutchik %>% 
+  group_by(word, emotion) %>%
+  count() %>% # summarize count per word per sentiment
+  group_by(emotion) %>%
+  arrange(emotion, desc(n)) %>% # most frequent on top
+  mutate(top = seq_along(word)) %>% # identify rank within group
+  filter(top <= 15) %>% # keep top 15 frequent words
+  ggplot(aes(x = -top, fill = factor(emotion))) + 
+  # create barplot
+  geom_bar(aes(y = n), stat = 'identity', col = 'black') +
+  # make sure words are printed either in or next to bar
+  geom_text(aes(y = ifelse(n > max(n) / 2, max(n) / 50, n + max(n) / 50),
+                label = word), size = fs/3, hjust = "left") +
+  theme_sjplot2() +
+  scale_fill_jco() +
+  theme(legend.position = 'none', # remove legend
+        text = element_text(size = fs), # determine fs
+        axis.text.x = element_text(angle = 45, hjust = 1), # rotate x text
+        axis.ticks.y = element_blank(), # remove y ticks
+        axis.text.y = element_blank()) + # remove y text
+  labs(y = "Word count", x = "", # add manual labels
+       title = "Words carrying strongest emotions") +
+  facet_grid(. ~ emotion, scales = "free") + # separate plot for each sentiment
+  coord_flip() # flip axes
+
+
+```
+
+
+```{r}
+summary(corpus_plutchik)
+```
+
+```{r}
+corpus_plutchik %>%
+  filter(!is.na(emotion)) %>%
+  ggplot(aes(emotion, fill = type)) +
+  geom_bar(stat = "count", position = "dodge", show.legend = T) +
+  theme_sjplot2() +
+  scale_fill_simpsons() +
+  theme(legend.position = "bottom",
+        text = element_text(size = fs), # determine fs
+        axis.text.x = element_text(angle = 45, hjust = 1) # rotate x text
+        )
+```
+
+
+
+```{r}
+
+# corpus_plutchik <- corpus_plutchik %>%
+#   group_by(type, emotion) %>%
+#   mutate(emotion_proportion = n()) %>%
+#   ungroup()
+# 
+# corpus_plutchik <- corpus_plutchik %>%
+#   group_by(type) %>%
+#   mutate(emotion_proportion2 = n()) %>%
+#   ungroup()
+# 
+# corpus_plutchik <- corpus_plutchik %>%
+#   mutate(emotion_proportion = emotion_proportion/emotion_proportion2*100)
+# 
+# corpus_plutchik$emotion_proportion2 <- NULL
+
+
+
+
+ggplot(corpus_plutchik, aes(emotion, fill = type)) +
+  geom_bar(stat = "count", position = "fill") +
+  theme_sjplot2() +
+  scale_fill_simpsons() +
+  theme(legend.position = "bottom",
+        text = element_text(size = fs), # determine fs
+        axis.text.x = element_text(angle = 45, hjust = 1) # rotate x text
+        )
+
+
+```
+
+
+```{r}
+corpus_plutchik %>%
+  filter(!is.na(emotion)) %>%
+  ggplot(aes(emotion, fill = type)) +
+  geom_histogram(stat = "count", position = "dodge") +
+  facet_wrap(. ~ title, scales = "free_y")  +
+  theme_sjplot2() +
+  scale_fill_simpsons() +
+  theme(legend.position = "bottom",
+        text = element_text(size = fs), # determine fs
+        axis.text.x = element_text(angle = 45, hjust = 1) # rotate x text
+        )
+
+```
+
+## Sentiart
+
+```{r}
+corpus_SentiArt <- corpus_all_entities_long %>%
+  mutate(word = tolower(word)) %>%
+  anti_join(stop_german, by = "word")
+
+corpus_SentiArt <-  left_join(corpus_SentiArt, sentiart, by = "word")
+
+summary(corpus_SentiArt)
+```
+
+### fear
+
+```{r fig.height=7, fig.width=10}
+corpus_SentiArt %>% 
+  ggplot(aes(type, fear_z, fill = type)) +
+  geom_boxplot() +
+  theme_sjplot2() +
+  scale_fill_simpsons()     +
+  ggpubr::stat_compare_means(method = "wilcox.test",
+                             comparisons = list(c("CH_rural", "CH_urban")),
+                             na.rm = T,
+                             label = "p.signif")
+
+```
+```{r}
+
+Rmisc::summarySE(corpus_SentiArt, measurevar = "fear_z",
+          groupvars = c("type"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+```{r}
+compare_means(fear_z ~ type, data = corpus_SentiArt, method = "wilcox.test")
+
+```
+
+### disgust
+
+```{r fig.height=7, fig.width=10}
+
+corpus_SentiArt %>% 
+  ggplot(aes(type, disg_z, fill = type)) +
+  geom_boxplot() +
+  theme_sjplot2() +
+  scale_fill_simpsons()     +
+  ggpubr::stat_compare_means(method = "wilcox.test",
+                             comparisons = list(c("CH_rural", "CH_urban")),
+                             na.rm = T,
+                             label = "p.signif")
+```
+```{r}
+
+Rmisc::summarySE(corpus_SentiArt, measurevar = "disg_z",
+          groupvars = c("type"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+```{r}
+compare_means(disg_z ~ type, data = corpus_SentiArt, method = "wilcox.test")
+
+```
+
+### happyness
+
+```{r fig.height=7, fig.width=10}
+
+corpus_SentiArt %>% 
+  ggplot(aes(type, hap_z, fill = type)) +
+  geom_boxplot() +
+  theme_sjplot2() +
+  scale_fill_simpsons()     +
+  ggpubr::stat_compare_means(method = "wilcox.test",
+                             comparisons = list(c("CH_rural", "CH_urban")),
+                             na.rm = T,
+                             label = "p.signif")
+```
+```{r}
+
+Rmisc::summarySE(corpus_SentiArt, measurevar = "hap_z",
+          groupvars = c("type"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+```{r}
+compare_means(hap_z ~ type, data = corpus_SentiArt, method = "wilcox.test")
+
+```
+
+### sadness
+
+```{r fig.height=7, fig.width=10}
+
+corpus_SentiArt %>% 
+  ggplot(aes(type, sad_z, fill = type)) +
+  geom_boxplot() +
+  theme_sjplot2() +
+  scale_fill_simpsons()     +
+  ggpubr::stat_compare_means(method = "wilcox.test",
+                             comparisons = list(c("CH_rural", "CH_urban")),
+                             na.rm = T,
+                             label = "p.signif")
+```
+```{r}
+
+Rmisc::summarySE(corpus_SentiArt, measurevar = "sad_z",
+          groupvars = c("type"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+```{r}
+compare_means(sad_z ~ type, data = corpus_SentiArt, method = "wilcox.test")
+
+```
+
+### surprise
+
+```{r fig.height=7, fig.width=10}
+
+corpus_SentiArt %>% 
+  ggplot(aes(type, surp_z, fill = type)) +
+  geom_boxplot() +
+  theme_sjplot2() +
+  scale_fill_simpsons()     +
+  ggpubr::stat_compare_means(method = "wilcox.test",
+                             comparisons = list(c("CH_rural", "CH_urban")),
+                             na.rm = T,
+                             label = "p.signif")
+```
+```{r}
+
+Rmisc::summarySE(corpus_SentiArt, measurevar = "surp_z",
+          groupvars = c("type"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+```{r}
+compare_means(surp_z ~ type, data = corpus_SentiArt, method = "wilcox.test")
+
+```
+
+### anger
+
+```{r fig.height=7, fig.width=10}
+
+corpus_SentiArt %>% 
+  ggplot(aes(type, ang_z, fill = type)) +
+  geom_boxplot() +
+  theme_sjplot2() +
+  scale_fill_simpsons()     +
+  ggpubr::stat_compare_means(method = "wilcox.test",
+                             comparisons = list(c("CH_rural", "CH_urban")),
+                             na.rm = T,
+                             label = "p.signif")
+```
+```{r}
+
+Rmisc::summarySE(corpus_SentiArt, measurevar = "ang_z",
+          groupvars = c("type"),
+          na.rm = TRUE,
+          conf.interval = 0.95)
+
+```
+
+```{r}
+compare_means(ang_z ~ type, data = corpus_SentiArt, method = "wilcox.test")
+
+```
+
+
+```{r}
+corpus_all_entities_long %>%
+  # mutate(word = tolower(word)) %>%
+  select(5, 7) %>%
+  group_by(word, type) %>% 
+  anti_join(stop_german, by = "word") %>%
+  inner_join(sentiart_long, by = "word")  %>%
+  # summarise(value = mean(value)) %>%
+  ggplot(aes(x = type, y = value, fill = emotion)) +
+  ylim(-2,2) +
+  # facet_wrap(~ type, scales = "free_y") +
+  geom_boxplot() +
+  theme_sjplot2() +
+  theme(legend.position = 'none', # get rid of legend
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5)) + 
+  scale_fill_simpsons() +
+  facet_grid(emotion ~ .)
+```
+
+
+

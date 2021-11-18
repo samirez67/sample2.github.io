@@ -1,0 +1,298 @@
+---
+title: "Text Mining HP by Paul van der Laken"
+author: "Giulia Grisot"
+date: '`r format(Sys.time(), "%d %B %Y")`'
+output:
+  html_notebook:
+    theme: flatly
+---
+
+Setup
+
+First, we need to set up our environment in RStudio. We will be needing several packages for our analyses. Most importantly, Bradley Boehmke was nice enough to gather all Harry Potter books in his harrypotter package on GitHub. We need devtools to install that package the first time, but from then on can load it in normally. Next, we load the tidytext package, which automates and tidies a lot of the text mining functionalities. We also need plyr for a specific function (ldply()). Other tidyverse packages we can load in a single bundle, including ggplot2, dplyr, and tidyr, which I use in almost every of my projects. Finally, we load the wordcloud visualization package which draws on tm.
+
+After loading these packages, I set some additional default options.
+
+# LOAD IN PACKAGES
+
+```{r}
+library(devtools)
+library(harrypotter)
+library(tidytext)
+library(plyr)
+library(tidyverse)
+library(wordcloud)
+library(textdata)
+```
+
+# OPTIONS
+```{r}
+options(stringsAsFactors = F, # do not convert upon loading
+        scipen = 999, # do not convert numbers to e-values
+        max.print = 200) # stop printing after 200 values
+```
+
+# VIZUALIZATION SETTINGS
+
+```{r}
+theme_set(theme_light()) # set default ggplot theme to light
+fs = 12 # default plot font size
+```
+
+# Data preparation
+With RStudio set, its time to the text of each book from the harrypotter package which we then “pipe” (%>% – another magical function from the tidyverse – specifically magrittr) along to bind all objects into a single dataframe. Here, each row represents a book with the text for each chapter stored in a separate columns. We want tidy data, so we use tidyr’s gather() function to turn each column into grouped rows. With tidytext’s unnest_tokens() function we can separate the tokens (in this case, single words) from these chapters.
+
+# LOAD IN BOOK CHAPTERS
+# TRANSFORM TO TOKENIZED DATASET
+
+```{r}
+load("~/Dropbox/Stats/Semantic Analysis and NER/TM_harrypotter/data/philosophers_stone.rda")
+load("~/Dropbox/Stats/Semantic Analysis and NER/TM_harrypotter/data/chamber_of_secrets.rda")
+load("~/Dropbox/Stats/Semantic Analysis and NER/TM_harrypotter/data/prisoner_of_azkaban.rda")
+load("~/Dropbox/Stats/Semantic Analysis and NER/TM_harrypotter/data/goblet_of_fire.rda")
+load("~/Dropbox/Stats/Semantic Analysis and NER/TM_harrypotter/data/order_of_the_phoenix.rda")
+load("~/Dropbox/Stats/Semantic Analysis and NER/TM_harrypotter/data/half_blood_prince.rda")
+load("~/Dropbox/Stats/Semantic Analysis and NER/TM_harrypotter/data/deathly_hallows.rda")
+
+
+hp_words <- list(
+ philosophers_stone = philosophers_stone,
+ chamber_of_secrets = chamber_of_secrets,
+ prisoner_of_azkaban = prisoner_of_azkaban,
+ goblet_of_fire = goblet_of_fire,
+ order_of_the_phoenix = order_of_the_phoenix,
+ half_blood_prince = half_blood_prince,
+ deathly_hallows = deathly_hallows
+) %>%
+ ldply(rbind) %>% # bind all chapter text to dataframe columns
+ mutate(book = factor(seq_along(.id), labels = .id)) %>% # identify associated book
+ select(-.id) %>% # remove ID column
+ gather(key = 'chapter', value = 'text', -book) %>% # gather chapter columns to rows
+ filter(!is.na(text)) %>% # delete the rows/chapters without text
+ mutate(chapter = as.integer(chapter)) %>% # chapter id to numeric
+ unnest_tokens(word, text, token = 'words') # tokenize data frame
+
+```
+
+Let’s inspect our current data format with head(), which prints the first rows (default n = 6).
+
+# EXAMINE FIRST AND LAST WORDS OF SAGA
+```{r}
+hp_words %>% head()
+```
+
+Word frequency
+A next step would be to examine word frequencies.
+
+# PLOT WORD FREQUENCY PER BOOK
+```{r}
+# PLOT WORD FREQUENCY PER BOOK
+hp_words %>%
+  group_by(book, word) %>%
+  anti_join(stop_words, by = "word") %>% # delete stopwords
+  count() %>% # summarize count per word per book
+  arrange(desc(n)) %>% # highest freq on top
+  group_by(book) %>% # 
+  mutate(top = seq_along(word)) %>% # identify rank within group
+  filter(top <= 15) %>% # retain top 15 frequent words
+  # create barplot
+  ggplot(aes(x = -top, fill = book)) + 
+  geom_bar(aes(y = n), stat = 'identity', col = 'black') +
+  # make sure words are printed either in or next to bar
+  geom_text(aes(y = ifelse(n > max(n) / 2, max(n) / 50, n + max(n) / 50),
+                label = word), size = fs/3, hjust = "left") +
+  theme(legend.position = 'none', # get rid of legend
+        text = element_text(size = fs), # determine fs
+        axis.text.x = element_text(angle = 45, hjust = 1, size = fs/1.5), # rotate x text
+        axis.ticks.y = element_blank(), # remove y ticks
+        axis.text.y = element_blank()) + # remove y text
+  labs(y = "Word count", x = "", # add labels
+       title = "Harry Plotter: Most frequent words throughout the saga") +
+  facet_grid(. ~ book) + # separate plot for each book
+  coord_flip() # flip axes
+
+```
+
+
+
+
+Unsuprisingly, Harry is the most common word in every single book and Ron and Hermione are also present. Dumbledore’s role as an (irresponsible) mentor becomes greater as the storyline progresses. The plot also nicely depicts other key characters:
+
+Lockhart and Dobby in book 2,
+Lupin in book 3,
+Moody and Crouch in book 4,
+Umbridge in book 5,
+Ginny in book 6,
+and the final confrontation with He who must not be named in book 7.
+Finally, why does J.K. seem obsessively writing about eyes that look at doors?
+
+Estimating sentiment
+Next, we turn to the sentiment of the text. tidytext includes three famous sentiment dictionaries:
+
+AFINN: including bipolar sentiment values ranging from -5 to 5
+bing: including bipolar sentiment values
+nrc: including sentiment values for many different emotions (e.g., anger, joy, and surprise)
+The following script identifies all words that occur both in the books and the dictionaries and combines them into a long dataframe:
+
+# EXTRACT SENTIMENT WITH THREE DICTIONARIES
+
+
+```{r}
+
+hp_senti <- bind_rows(
+  # 1 AFINN 
+  hp_words %>% 
+    inner_join(get_sentiments("afinn"), by = "word")  %>%
+    filter(value != 0) %>% # delete neutral words
+    mutate(sentiment = ifelse(value < 0, 'negative', 'positive')) %>% # identify sentiment
+    mutate(value = sqrt(value ^ 2)) %>% # all values to positive
+    group_by(book, chapter, sentiment) %>% 
+    mutate(dictionary = 'afinn'), # create dictionary identifier
+  
+  # 2 BING 
+  hp_words %>% 
+    inner_join(get_sentiments("bing"), by = "word") %>%
+    group_by(book, chapter, sentiment) %>%
+    mutate(dictionary = 'bing'), # create dictionary identifier
+  
+  # 3 NRC 
+  hp_words %>% 
+    inner_join(get_sentiments("nrc"), by = "word") %>%
+    group_by(book, chapter, sentiment) %>%
+    mutate(dictionary = 'nrc') # create dictionary identifier
+)
+```
+
+
+
+# EXAMINE FIRST SENTIMENT WORDS
+
+```{r}
+hp_senti %>% head()
+```
+
+Wordcloud
+Although wordclouds are not my favorite visualizations, they do allow for a quick display of frequencies among a large body of words.
+
+```{r}
+hp_senti %>%
+  group_by(word) %>%
+  count() %>% # summarize count per word
+  mutate(log_n = sqrt(n)) %>% # take root to decrease outlier impact
+  with(wordcloud(word, log_n, max.words = 100))
+```
+
+
+
+It appears we need to correct for some words that occur in the sentiment dictionaries but have a different meaning in J.K. Rowling’s books. Most importantly, we need to filter two character names.
+
+# DELETE SENTIMENT FOR CHARACTER NAMES
+
+```{r}
+hp_senti_sel <- hp_senti %>% filter(!word %in% c("harry","moody"))
+
+```
+Words per sentiment
+Let’s quickly sketch the remaining words per sentiment.
+
+# VIZUALIZE MOST FREQUENT WORDS PER SENTIMENT
+```{r}
+hp_senti_sel %>% # NAMES EXCLUDED
+  group_by(word, sentiment) %>%
+  count() %>% # summarize count per word per sentiment
+  group_by(sentiment) %>%
+  arrange(sentiment, desc(n)) %>% # most frequent on top
+  mutate(top = seq_along(word)) %>% # identify rank within group
+  filter(top <= 15) %>% # keep top 15 frequent words
+  ggplot(aes(x = -top, fill = factor(sentiment))) + 
+  # create barplot
+  geom_bar(aes(y = n), stat = 'identity', col = 'black') +
+  # make sure words are printed either in or next to bar
+  geom_text(aes(y = ifelse(n > max(n) / 2, max(n) / 50, n + max(n) / 50),
+                label = word), size = fs/3, hjust = "left") +
+  theme(legend.position = 'none', # remove legend
+        text = element_text(size = fs), # determine fs
+        axis.text.x = element_text(angle = 45, hjust = 1), # rotate x text
+        axis.ticks.y = element_blank(), # remove y ticks
+        axis.text.y = element_blank()) + # remove y text
+  labs(y = "Word count", x = "", # add manual labels
+       title = "Harry Plotter: Words carrying sentiment as counted throughout the saga",
+       subtitle = "Using tidytext and the AFINN, bing, and nrc sentiment dictionaries") +
+  facet_grid(. ~ sentiment) + # separate plot for each sentiment
+  coord_flip() # flip axes
+```
+
+
+
+This seems ok. Let’s continue to plot the sentiment over time.
+
+Positive and negative sentiment throughout the series
+As positive and negative sentiment is included in each of the three dictionaries we can to compare and contrast values.
+
+# VIZUALIZE POSTIVE/NEGATIVE SENTIMENT OVER TIME
+```{r}
+plot_sentiment <- hp_senti_sel %>% # NAMES EXCLUDED
+  group_by(dictionary, sentiment, book, chapter) %>%
+  summarize(value = sum(value), # summarize AFINN values
+            count = n(), # summarize bing and nrc counts
+            # move bing and nrc counts to value 
+            value = ifelse(is.na(value), count, value))  %>%
+  filter(sentiment %in% c('positive','negative')) %>%   # only retain bipolar sentiment
+  mutate(value = ifelse(sentiment == 'negative', -value, value)) %>% # reverse negative values
+  # create area plot
+  ggplot(aes(x = chapter, y = value)) +    
+  geom_area(aes(fill = value > 0),stat = 'identity') +
+  scale_fill_manual(values = c('red','green')) + # change colors
+  # add black smoothed line without standard error
+  geom_smooth(method = "loess", se = F, col = "black") + 
+  theme(legend.position = 'none', # remove legend
+        text = element_text(size = fs)) + # change font size
+  labs(x = "Chapter", y = "Sentiment value", # add labels
+       title = "Harry Plotter: Sentiment during the saga",
+       subtitle = "Using tidytext and the AFINN, bing, and nrc sentiment dictionaries") +
+     # separate plot per book and dictionary and free up x-axes
+  facet_grid(dictionary ~ book, scale = "free_x")
+plot_sentiment
+
+```
+
+
+Let’s zoom in on the smoothed average.
+```{r}
+plot_sentiment + coord_cartesian(ylim = c(-100,50)) # zoom in plot
+
+```
+
+Sentiment seems overly negative throughout the series. Particularly salient is that every book ends on a down note, except the Prisoner of Azkaban. Moreover, sentiment becomes more volatile in books four through six. These start out negative, brighten up in the middle, just to end in misery again. In her final book, J.K. Rowling depicts a world about to be conquered by the Dark Lord and the average negative sentiment clearly resembles this grim outlook.
+
+The bing sentiment dictionary estimates the most negative sentiment on average, but that might be due to this specific text.
+
+Other emotions throughout the series
+Finally, let’s look at the other emotions that are included in the nrc dictionary.
+
+# VIZUALIZE EMOTIONAL SENTIMENT OVER TIME
+```{r}
+hp_senti_sel %>% # NAMES EXCLUDED 
+  filter(!sentiment %in% c('negative','positive')) %>% # only retain other sentiments (nrc)
+  group_by(sentiment, book, chapter) %>%
+  count() %>% # summarize count
+  # create area plot
+  ggplot(aes(x = chapter, y = n)) +
+  geom_area(aes(fill = sentiment), stat = 'identity') + 
+  # add black smoothing line without standard error
+  geom_smooth(aes(fill = sentiment), method = "loess", se = F, col = 'black') + 
+  theme(legend.position = 'none', # remove legend
+        text = element_text(size = fs)) + # change font size
+  labs(x = "Chapter", y = "Emotion value", # add labels
+       title = "Harry Plotter: Emotions during the saga",
+       subtitle = "Using tidytext and the nrc sentiment dictionary") +
+  # separate plots per sentiment and book and free up x-axes
+  facet_grid(sentiment ~ book, scale = "free_x") 
+```
+
+This plot is less insightful as either the eight emotions are represented by similar words or J.K. Rowling combines all in her writing simultaneously. Patterns across emotions are highly similar, evidenced especially by the patterns in the Chamber of Secrets. In a next post, I will examine sentiment in a more detailed fashion, testing the differences over time and between characters statistically. For now, I hope you enjoyed these visualizations. Feel free to come back or subscribe to read my subsequent analyses.
+
+The second blog in the Harry Plotter series examines the stereotypes behind the Hogwarts houses.
+
+About the author
+Paul van der Laken is a Ph.D. student at Tilburg University, sponsored by Shell. Paul has nearly five years experience in People Analytics / HR Analytics and his Ph.D. research focuses on how organizations may leverage their HR data to improve the effectiveness of their global mobility policy. Paul has a broader interest in all things data and works on diverse dashboarding and data visualization projects in his spare time. Under the label of VDLogic, Paul provides post-graduate and in-house courses in data analysis as well as (pro-bono) stastistical consulting. You can visit his blog for more information (www.paulvanderlaken.com).

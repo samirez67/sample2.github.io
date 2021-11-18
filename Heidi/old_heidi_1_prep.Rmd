@@ -1,0 +1,893 @@
+---
+title: "Test paper - corpus prep"
+author: "Giulia Grisot"
+date: "2020"
+output:
+  html_notebook: 
+    number_sections: no
+    theme: flatly
+---
+
+# Corpus preparation
+
+```{r message=FALSE, warning=F}
+
+library(tidyverse)
+library(tidytext)
+library(sjPlot)
+library(ggsci)
+# library(wesanderson)
+library(wordcloud)
+library(readxl)
+library(plyr)
+
+```
+
+## method 1 Load txt files from a directory and prepare text corpus
+
+```{r}
+# 
+# # read in texts (file name must be in the format: surname_section_year.txt)
+# # for instructions about how to see:  https://data.library.virginia.edu/a-beginners-guide-to-text-analysis-with-quanteda/
+# 
+# heidi_1 <- readtext::readtext("spyri_heidilehr_1880.txt", encoding = "UTF-8")
+# heidi_2 <- readtext::readtext("spyri_heidibrauchen_1881.txt", encoding = "UTF-8")
+# 
+# 
+# heidi <- list(
+#  heidi_1 = heidi_1$text,
+#  heidi_2 = heidi_2$text
+# ) %>%
+#  ldply(rbind) %>%
+#   mutate(book = .id) %>%
+#   mutate(text = `1`) %>%
+#   select(-1,-2)
+# 
+# heidi_sentences <- heidi %>%
+#   unnest_tokens(sentence, text, token = "sentences", to_lower = F)
+# 
+# heidi_words <- heidi %>%
+#   unnest_tokens(word, text, token = "words", to_lower = F)
+
+```
+
+## method 2 Load epub files from a directory and prepare text corpus
+this preserves chapter data
+
+```{r}
+
+# read in texts (file name must be in the format: surname_section_year.txt)
+# for instructions about how to see:  https://data.library.virginia.edu/a-beginners-guide-to-text-analysis-with-quanteda/
+
+library(epubr)
+
+heidi <- as.data.frame(epub("other_texts/spyri_heidi_1880_2.epub"))
+
+heidi <- unnest(heidi, data)
+
+heidi_txt <- heidi[11:35, ]
+
+
+
+```
+
+```{r}
+
+heidi_sentences <- heidi_txt %>%
+  unnest_tokens(sentence, text, token = "sentences", to_lower = F)
+
+heidi_words <- heidi_txt %>%
+  unnest_tokens(word, text, token = "words", to_lower = F)
+
+```
+
+
+```{r}
+
+heidi_words <- heidi_words %>%
+  mutate(type = if_else(nword < 10, "title", "chapter")) %>%
+  mutate(ch_n = as.integer(factor(section, levels = unique(.$section)))) %>%
+  mutate(book = if_else(ch_n < 16, "book1", "book2"))
+
+heidi_words$book <- as.factor(heidi_words$book)
+
+heidi_words <- heidi_words %>% filter(!(str_detect(word, "\\d"))) #remove rows containing numbers in the word column
+
+
+
+heidi_sentences <- heidi_sentences %>%
+  mutate(type = if_else(nword < 10, "title", "chapter")) %>%
+  mutate(ch_n = as.integer(factor(section, levels = unique(.$section)))) %>%
+  mutate(book = if_else(ch_n < 16, "book1", "book2"))
+
+heidi_sentences$book <- as.factor(heidi_sentences$book)
+
+heidi_sentences <- heidi_sentences %>% filter(!(str_detect(sentence, "\\d"))) #remove rows containing numbers in the word column
+
+```
+
+## Stop words
+
+A next step would be to examine word frequencies.
+
+- let's start by making a dataset of german stop words that will then be removed from the corpus
+
+```{r}
+stop_german <- tibble(word = stopwords::stopwords("de"))
+stop_french <- tibble(word = stopwords::stopwords("fr"))
+stop_ita <- tibble(word = stopwords::stopwords("it"))
+```
+
+# add sentence case stopwords
+
+```{r}
+stop_german2 <- stop_german
+stop_german2$word <- str_to_sentence(stop_german2$word)
+stop_german <- bind_rows(stop_german, stop_german2)
+remove(stop_german2)
+```
+
+## Add word ID and Frequencies 
+
+```{r}
+heidi_sentences <- heidi_sentences %>%
+  dplyr::mutate(sentence_id = row_number())
+
+heidi_words <- heidi_words %>%
+  dplyr::mutate(word_id = row_number())
+
+```
+
+
+```{r}
+## Load txt files from a directory and prepare text corpus
+# text_all <- text_all %>% filter(!(str_detect(word, "\\d"))) #remove rows containing numbers in the word column
+
+```
+
+# heidi names
+
+
+```{r}
+## indentify proper names
+heidi_names <- c("heidi", "öhi", "clara", "peter", "klara", "großmutter", "großvater", "großmama", "sesemann", "rottenmeier", "sebastian", "alm-öhi")
+
+heidi_names <- as.data.frame(heidi_names)
+heidi_names2 <- heidi_names
+heidi_names2$heidi_names <- str_to_sentence(heidi_names2$heidi_names)
+
+heidi_names <- heidi_names %>%
+  bind_rows(heidi_names2) %>%
+  mutate(word = heidi_names) %>%
+  select(word)
+
+remove(heidi_names2)
+
+```
+
+# Sentiment Dictionaries
+
+## SentiWS
+
+let's alter the SentiWS dictionary to include all forms of the different tokens
+
+```{r}
+
+sentiWS <- pradadata::sentiws
+sentiWS_long <- unnest_tokens(sentiWS, word2, inflections, to_lower = F)
+
+# there are some empty rows in word2 column, which should be the same as word. let's fill the gaps.
+
+sentiWS_long1 <- sentiWS_long %>%
+  select(4,1,3) %>%
+  mutate(word = word2) %>%
+  select(-word2)
+
+sentiWS_long2 <- sentiWS_long %>%
+  select(2,1,3)
+
+# sentiWS_long$word <- tolower(sentiWS_long$word2)
+
+sentiWS_long <- bind_rows(sentiWS_long2, sentiWS_long1)
+
+sentiWS_long <- sentiWS_long %>%
+  dplyr::rename(SentiWS_neg_pos = neg_pos) %>%
+  dplyr::rename(SentiWS_polarity = value)
+
+remove(sentiWS, sentiWS_long1, sentiWS_long2)
+
+
+```
+
+## Glex
+
+```{r}
+glex <- pradadata::germanlex
+glex <- glex %>%
+  dplyr::rename(glex_neg_pos = qualifier) %>%
+  dplyr::rename(glex_polarity = polarity_strength)
+
+# there seem to be a few words that are not right in the dataset. let's take them out
+
+glex <- filter(glex, word != "%%")
+
+```
+
+## SentiART
+
+```{r}
+sentiart <- read.csv("SA_resources/SentiArt.dat", dec = ",")
+
+sentiart_long <- sentiart %>%
+  select(-1) %>%
+  gather(emotion, value, -word)
+
+sentiart_long_top <- sentiart_long %>% 
+  group_by(word) %>% 
+  slice_max(value)
+
+```
+
+## Plutchnik
+
+```{r, message=F}
+
+plutchik <- read_csv("SA_resources/Plutchik_Emotionslexikon.csv")
+
+plutchik <- plutchik %>%
+  filter(!is.na(Wortart)) %>%
+  filter(!is.na(word))
+
+plutchik$word <- plutchik$`#Term`
+plutchik$emotion <- plutchik$`Emotion 1`
+
+plutchik$`#Term` <- NULL
+plutchik$`Emotion 1` <- NULL
+
+plutchik <- plutchik %>%
+  filter(emotion != "??" & emotion != "??emotion??")
+
+plutchik$emotion <- as.factor(plutchik$emotion)
+
+```
+
+## LANG
+
+```{r, message=F}
+LANG_processed <- read_table2("SA_resources/LANG_processed.csv")
+
+```
+
+## BAWL
+
+```{r, message=F}
+BAWL <- read_csv("SA_resources/BAWL-R.csv")
+
+CapStr <- function(y) {
+  c <- strsplit(y, " ")[[1]]
+  paste(toupper(substring(c, 1,1)), substring(c, 2),
+        sep="", collapse=" ")
+}
+
+for(i in 1:length(BAWL$WORD)){
+  
+  if(BAWL$WORD_CLASS[i] == "N")
+    BAWL$WORD_LOWER[i] <- CapStr(BAWL$WORD_LOWER[i])
+  
+}
+
+BAWL_emotions <- data.frame(word = BAWL$WORD_LOWER, valence = BAWL$EMO_MEAN, arousal = BAWL$AROUSAL_MEAN, imageability = BAWL$IMAGE_MEAN, stringsAsFactors = F)
+
+
+```
+
+## Klinger
+
+```{r, warning=F, message=F}
+
+ekel <- read_table("SA_resources/Klinger_emotion_lexicon/Ekel.txt", col_names = F) %>%
+  mutate(emotion = "ekel", word = X1) %>%
+  select(-X1)
+freude <- read_csv("SA_resources/Klinger_emotion_lexicon/Freude.txt", col_names = F)%>%
+  mutate(emotion = "freude", word = X1) %>%
+  select(-X1)
+furcht <- read_csv("SA_resources/Klinger_emotion_lexicon/Furcht.txt", col_names = F)%>%
+  mutate(emotion = "furcht", word = X1) %>%
+  select(-X1)
+trauer <- read_csv("SA_resources/Klinger_emotion_lexicon/Trauer.txt", col_names = F)%>%
+  mutate(emotion = "trauer", word = X1) %>%
+  select(-X1)
+ueberraschung <- read_csv("SA_resources/Klinger_emotion_lexicon/Ueberraschung.txt", col_names = F)%>%
+  mutate(emotion = "ueberraschung", word = X1) %>%
+  select(-X1)
+verachtung <- read_csv("SA_resources/Klinger_emotion_lexicon/Verachtung.txt", col_names = F)%>%
+  mutate(emotion = "verachtung", word = X1) %>%
+  select(-X1)
+wut <- read_csv("SA_resources/Klinger_emotion_lexicon/wut.txt", col_names = F)%>%
+  mutate(emotion = "wut", word = X1) %>%
+  select(-X1)
+
+klinger <- bind_rows(ekel, freude, furcht, trauer, ueberraschung, verachtung, wut)
+
+remove(ekel, freude, furcht, trauer, ueberraschung, verachtung, wut)
+```
+
+
+
+
+# Geolocations & NER
+
+
+## geological/natural terms
+
+german terms from openthesaurus, modified url for different categories (29, 5, 6)
+
+https://www.openthesaurus.de/term/list?max=1705&offset=0&categoryId=6
+
+
+```{r}
+# geogr_terms <- geogr_terms <- read_excel("Geolocation and maps/geogr_terms.xlsx", 
+#                                          sheet = "All_nodoub", col_types = c("text", 
+#                                                                              "skip", "text"))
+# geogr_terms <- read_excel("Geolocation and maps/geogr_terms.xlsx",
+#                                          sheet = "Geologie")
+
+nat_terms <- read_excel("Geolocation and map data/geogr_terms_new.xlsx", 
+    sheet = "Selected")
+
+nat_terms <- nat_terms %>%
+   dplyr::filter(!is.na(word)) %>%
+   dplyr::filter(!grepl("\\d", word))
+
+nat_terms <- nat_terms %>%
+   dplyr::filter(word != "Mann" &
+                    word != "Q" &
+                    word != "Frau" &
+                    word != "Frauen" &
+                    word != "Drei" &
+                    word != "Tisch" &
+                    word != "gezerrt" &
+                    word != "David" &
+                    word != "Rolle" &
+                    word != "Joseph" &
+                    word != "Alte" &
+                    word != "Jungen" &
+                    word != "Don" &
+                    word != "Donna" &
+                    word != "Maria" &
+                    word != "Tal" &
+                    word != "Erstes" &
+                    word != "B" &
+                    word != "Heinrich" &
+                    word != "Garten" &
+                    word != "Lee" &
+                    word != "Mittel" &
+                    word != "Art" &
+                    word != "Wagen" &
+                    word != "Speck" &
+                    word != "Morgen" &
+                    word != "Schönen" &
+                    word != "Mitte" &
+                    word != "Buch" &
+                    word != "Plan" &
+                    word != "Alter" &
+                    word != "Luft" &
+                    word != "Erste" &
+                    word != "Enge" &
+                    word != "Stock" &
+                    word != "Gottes" &
+                    word != "Vogel" &
+                    word != "Schule" &
+                    word != "Wasser" &
+                    word != "Lohn" &
+                    word != "Brot" &
+                    word != "Nie" &
+                    word != "Grauen" &
+                    word != "Kleine" &
+                    word != "Laufen" &
+                    word != "Jakob" &
+                    word != "Auge" &
+                    word != "Jungen" &
+                    word != "Spiegel" &
+                    word != "Meyer" &
+                    word != "Loch" &
+                    word != "Innere" &
+                    word != "Leid" &
+                    word != "Teilen" &
+                    word != "Mauer" &
+                    word != "Mut" &
+                    word != "Ei" &
+                    word != "Arten" &
+                    word != "Ring" &
+                    word != "Aussicht" &
+                    word != "Zug" &
+                    word != "B" &
+                    word != "Felix" &
+                    word != "Inhalte" &
+                    word != "Tante" &
+                    word != "Margot" &
+                    word != "Anna" &
+                    word != "Dritte" &
+                    word != "Ach" &
+                    word != "Beim" &
+                    word != "Rosa" &
+                    word != "Jean" &
+                    word != "Frohe" &
+                    word != "U" &
+                    word != "Schwarz" &
+                    word != "Michael" &
+                    word != "Peter" &
+                    word != "Sebastian" &
+                    word != "Hund" &
+                    word != "Marc" &
+                    word != "Signora" &
+                    word != "Valentino" &
+                    word != "Piano" &
+                    word != "Zweites" &
+                    word != "Viertes" &
+                    word != "Nase" &
+                    word != "Base" &
+                    word != "Kuchen" &
+                    word != "Satz" &
+                    word != "Gips" &
+                    word != "Roten" &
+                    word != "Krone" &
+                    word != "Rot" &
+                    word != "Gelb" &
+                    word != "Rad" &
+                    word != "Prosa" &
+                    word != "Lag" &
+                    word != "Bestellung" &
+                    word != "Vater" &
+                    word != "Mein" &
+                    word != "Bruder" &
+                    word != "Zeit" &
+                    word != "Numa" &
+                    word != "West" &
+                    word != "Ost" &
+                    word != "Ab" &
+                    word != "B" &
+                    word != "Ach")
+
+
+# natural_features_from_Text_Berg <- read_csv("natura features from Text+Berg.csv", 
+#                                            col_types = cols(rank = col_skip(), `count T+B` = col_skip()))
+# 
+# T_B_list <- natura_features_from_Text_Berg$word
+
+# geogr_terms <- geogr_terms %>%
+#   unnest_tokens(word, geologie)  %>%
+#   distinct() %>%
+#   mutate(geo_term = "yes")
+
+
+```
+
+
+
+
+## swiss places
+
+```{r}
+library(readxl)
+# swiss_places_source <- read_excel("CH/swiss_places.xlsx",  sheet = "Sheet1",
+#                            col_types = c("skip", "text", "text", 
+#                                          "text", "numeric", "numeric", "text", 
+#                                          "text", "text", "text", "text", "numeric", 
+#                                          "numeric", "numeric", "numeric", 
+#                                          "numeric", "skip", "skip", "skip", 
+#                                          "skip"))
+
+
+swiss_places <- read_excel("CH/swiss_places.xlsx", 
+    sheet = "Sheet1", col_types = c("skip", 
+        "text", "text", "text", "numeric", 
+        "numeric", "text", "text", "text", 
+        "text", "text", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "skip", "skip", "skip", "skip"))
+
+swiss_places <- swiss_places %>%
+  anti_join(nat_terms, by = "word")
+
+```
+
+
+<!-- ```{r} -->
+
+<!-- CH_country_regions <- swiss_places %>% -->
+<!--   filter(type == "A") %>% -->
+<!--   distinct() -->
+
+<!-- CH_streams_lake <- swiss_places %>% -->
+<!--   filter(type == "H")%>% -->
+<!--   distinct() -->
+
+<!-- CH_park_areas <- swiss_places %>% -->
+<!--   filter(type == "L") %>% -->
+<!--   distinct() -->
+
+<!-- CH_city_village <- swiss_places %>% -->
+<!--   filter(type == "P") %>% -->
+<!--   distinct() -->
+
+<!-- CH_roads <- swiss_places %>% -->
+<!--   filter(type == "R") %>% -->
+<!--   distinct() -->
+
+<!-- CH_building_spots <- swiss_places %>% -->
+<!--   filter(type == "S") %>% -->
+<!--   distinct() -->
+
+<!-- CH_mountain_hill <- swiss_places %>% -->
+<!--   filter(type == "T") %>% -->
+<!--   distinct() -->
+
+<!-- CH_forests <- swiss_places %>% -->
+<!--   filter(type == "V") %>% -->
+<!--   distinct() -->
+
+<!-- ``` -->
+
+
+
+<!-- ```{r} -->
+<!-- swiss_places <- swiss_places_source %>% -->
+<!--   dplyr::select(name_1, name_2, name_3, type) -->
+
+
+<!-- swiss_places1  <- swiss_places %>% -->
+<!--   unnest_tokens(name, name_1, token = "words", to_lower = F) %>% -->
+<!--   select(type, name) -->
+
+<!-- swiss_places2  <- swiss_places %>% -->
+<!--   unnest_tokens(name, name_2, token = "words", to_lower = F)  %>% -->
+<!--   select(type, name) -->
+
+<!-- swiss_places3  <- swiss_places %>% -->
+<!--   unnest_tokens(name, name_3, token = "words", to_lower = F)  %>% -->
+<!--   select(type, name) -->
+
+<!-- swiss_places <- bind_rows(swiss_places1, swiss_places2, swiss_places3) -->
+
+<!-- remove(swiss_places1, swiss_places2, swiss_places3) -->
+
+
+<!-- # swiss_places <- swiss_places %>% -->
+<!-- #   dplyr::filter(!grepl("\\(", name)) %>% -->
+<!-- #   dplyr::filter(!grepl("\\)", name)) %>% -->
+<!-- #   dplyr::filter(!grepl("\\d", name)) %>% -->
+<!-- #   dplyr::filter(!grepl("/", name)) %>% -->
+<!-- #   dplyr::filter(!grepl("&", name)) %>% -->
+<!-- #   dplyr::filter(!grepl("\\[", name)) %>% -->
+<!-- #   dplyr::filter(!grepl("\\]", name)) -->
+
+
+<!-- swiss_places <- swiss_places %>% -->
+<!--   filter(!is.na(name))  %>% -->
+<!--   filter(name != "-") -->
+
+
+<!-- # swiss_places <- swiss_places %>% -->
+<!-- #   tidytext::unnest_tokens(name, name, token = "words", to_lower = F) -->
+
+<!--  swiss_places <- swiss_places %>% -->
+<!--    dplyr::filter(!is.na(name)) -->
+
+<!--  swiss_places <- swiss_places %>% -->
+<!--     dplyr::filter(!grepl("\\d", name)) -->
+
+```{r}
+swiss_places <- swiss_places %>%
+   dplyr::filter(word != "Mann" &
+                    word != "Q" &
+                    word != "Frau" &
+                    word != "Frauen" &
+                    word != "Drei" &
+                    word != "Tisch" &
+                    word != "gezerrt" &
+                    word != "David" &
+                    word != "Rolle" &
+                    word != "Joseph" &
+                    word != "Alte" &
+                    word != "Jungen" &
+                    word != "Don" &
+                    word != "Donna" &
+                    word != "Maria" &
+                    word != "Tal" &
+                    word != "Erstes" &
+                    word != "B" &
+                    word != "Heinrich" &
+                    word != "Garten" &
+                    word != "Lee" &
+                    word != "Mittel" &
+                    word != "Art" &
+                    word != "Wagen" &
+                    word != "Speck" &
+                    word != "Morgen" &
+                    word != "Schönen" &
+                    word != "Mitte" &
+                    word != "Buch" &
+                    word != "Plan" &
+                    word != "Alter" &
+                    word != "Luft" &
+                    word != "Erste" &
+                    word != "Enge" &
+                    word != "Stock" &
+                    word != "Gottes" &
+                    word != "Vogel" &
+                    word != "Schule" &
+                    word != "Wasser" &
+                    word != "Lohn" &
+                    word != "Brot" &
+                    word != "Nie" &
+                    word != "Grauen" &
+                    word != "Kleine" &
+                    word != "Laufen" &
+                    word != "Jakob" &
+                    word != "Auge" &
+                    word != "Jungen" &
+                    word != "Spiegel" &
+                    word != "Meyer" &
+                    word != "Loch" &
+                    word != "Innere" &
+                    word != "Leid" &
+                    word != "Teilen" &
+                    word != "Mauer" &
+                    word != "Mut" &
+                    word != "Ei" &
+                    word != "Arten" &
+                    word != "Ring" &
+                    word != "Aussicht" &
+                    word != "Zug" &
+                    word != "B" &
+                    word != "Felix" &
+                    word != "Inhalte" &
+                    word != "Tante" &
+                    word != "Margot" &
+                    word != "Anna" &
+                    word != "Dritte" &
+                    word != "Ach" &
+                    word != "Beim" &
+                    word != "Rosa" &
+                    word != "Jean" &
+                    word != "Frohe" &
+                    word != "U" &
+                    word != "Schwarz" &
+                    word != "Michael" &
+                    word != "Peter" &
+                    word != "Sebastian" &
+                    word != "Hund" &
+                    word != "Marc" &
+                    word != "Signora" &
+                    word != "Valentino" &
+                    word != "Piano" &
+                    word != "Zweites" &
+                    word != "Viertes" &
+                    word != "Nase" &
+                    word != "Base" &
+                    word != "Kuchen" &
+                    word != "Satz" &
+                    word != "Gips" &
+                    word != "Roten" &
+                    word != "Krone" &
+                    word != "Rot" &
+                    word != "Gelb" &
+                    word != "Rad" &
+                    word != "Prosa" &
+                    word != "Lag" &
+                    word != "Bestellung" &
+                    word != "Vater" &
+                    word != "Mein" &
+                    word != "Bruder" &
+                    word != "Zeit" &
+                    word != "Numa" &
+                    word != "West" &
+                    word != "Ost" &
+                    word != "Ab" &
+                    word != "B" &
+                    word != "Ach")
+
+```
+
+
+<!-- ````{r} -->
+
+<!-- swiss_places$name <- tolower(swiss_places$name) -->
+
+
+<!-- swiss_places <- swiss_places %>% dplyr::anti_join(stop_german, by = c("name" = "word")) -->
+<!-- swiss_places <- swiss_places %>% dplyr::anti_join(stop_ita, by = c("name" = "word")) -->
+<!-- swiss_places <- swiss_places %>% dplyr::anti_join(stop_french, by = c("name" = "word")) -->
+
+
+<!-- swiss_places <- distinct(swiss_places) -->
+
+
+
+<!-- swiss_places_wide <- swiss_places %>% -->
+<!--   tidyr::pivot_wider(values_from = "type", names_from="type") -->
+
+<!-- names(swiss_places_wide)[2:9] <- c("type1", "type2", "type3", "type4", "type5", "type6", "type7", "type8") -->
+
+<!-- swiss_places_wide$name <- str_to_title(swiss_places_wide$name) -->
+<!-- # swiss_places$geo_loc = "GPE" -->
+
+<!-- swiss_places_wide <- swiss_places_wide %>% -->
+<!--    filter(!str_detect(name, "\\.")) -->
+
+<!-- swiss_places <- swiss_places %>% -->
+<!--    filter(!str_detect(name, "\\.")) -->
+
+<!-- swiss_places$name <- str_to_title(swiss_places$name) -->
+
+<!-- # swiss_places_wide <- swiss_places_wide %>% dplyr::anti_join(removables) -->
+
+<!-- swiss_places_list <- swiss_places_wide$name -->
+
+<!-- jsonlite::write_json(swiss_places_list, "swiss_gpe.json") -->
+
+<!-- ``` -->
+
+
+# check entities
+
+let's have a look if any items appear both in the rural lists and in the urban
+
+```{r}
+
+all_entities_wide <- nat_terms %>%
+  mutate(type = label) %>%
+  select(word, type) %>%
+  bind_rows(swiss_places) %>%
+  select(word, type) %>%
+  pivot_wider(values_from = "type", names_from="type", values_fn = length)
+
+all_entities_long <- all_entities_wide %>%
+  pivot_longer(cols = 2:10) %>%
+  filter(!is.na(value)) %>%
+  mutate(type = name) %>%
+  select(-value, -name)
+
+all_entities_long$type[all_entities_long$type == "A"] <-  "country_region_state"
+all_entities_long$type[all_entities_long$type == "P"] <-  "city_village"
+all_entities_long$type[all_entities_long$type == "R"] <-  "roads"
+all_entities_long$type[all_entities_long$type == "S"] <-  "spot_building"
+all_entities_long$type[all_entities_long$type == "L"] <-  "park_area"
+all_entities_long$type[all_entities_long$type == "T"] <-  "mountain"
+all_entities_long$type[all_entities_long$type == "V"] <-  "forest"
+all_entities_long$type[all_entities_long$type == "H"] <-  "stream_lake"
+
+all_entities_long  <- all_entities_long %>%
+  mutate(type2 = type)
+
+all_entities_long$type2[all_entities_long$type2 == "country_region_state"] <-  "CH_urban"
+all_entities_long$type2[all_entities_long$type2 == "city_village"] <-  "CH_urban"
+all_entities_long$type2[all_entities_long$type2 == "roads"] <-  "CH_urban"
+all_entities_long$type2[all_entities_long$type2 == "spot_building"] <-  NA
+all_entities_long$type2[all_entities_long$type2 == "park_area"] <-  NA
+all_entities_long$type2[all_entities_long$type2 == "mountain"] <-  "CH_rural"
+all_entities_long$type2[all_entities_long$type2 == "forest"] <-  "CH_rural"
+all_entities_long$type2[all_entities_long$type2 == "stream_lake"] <-  "CH_rural"
+
+
+```
+
+
+A = country region state
+P = city village
+R = roads
+
+S = spot building farm
+L = park areas
+
+T = mountains
+V = forests
+H = streams lakes
+
+
+
+
+# vector lists of Swiss places by type
+
+```{r}
+# CH_country_regions <- CH_country_regions$word
+# 
+# CH_streams_lake <- CH_streams_lake$word
+# 
+# CH_park_areas <- CH_park_areas$word
+# 
+# CH_city_village <- CH_city_village$word
+# 
+# CH_roads <- CH_roads$word
+# 
+# CH_building_spots <- CH_building_spots$word
+# 
+# CH_mountain_hill <- CH_mountain_hill$word
+# 
+# CH_forests <- CH_forests$word
+
+CH_country_regions <- all_entities_wide %>%
+  filter(is.na(P) & is.na(R) & is.na(V) & is.na(`T`) & is.na(H) & is.na(S) & is.na(L) & is.na(nat_term))
+CH_country_regions_list <- CH_country_regions$word
+
+CH_streams_lake <-  all_entities_wide %>%
+  filter(is.na(P) & is.na(R) & is.na(V) & is.na(`T`) & is.na(A) & is.na(S) & is.na(L) & is.na(nat_term))
+CH_streams_lake_list <- CH_streams_lake$word
+
+CH_city_village <- all_entities_wide %>%
+  filter(is.na(A) & is.na(R) & is.na(V) & is.na(`T`) & is.na(H) & is.na(S) & is.na(L) & is.na(nat_term))
+CH_city_village_list <- CH_city_village$word
+
+CH_roads <- all_entities_wide %>%
+  filter(is.na(A) & is.na(P) & is.na(V) & is.na(`T`) & is.na(H) & is.na(S) & is.na(L) & is.na(nat_term))
+CH_roads_list <- CH_roads$word
+
+CH_mountain_hill <- all_entities_wide %>%
+  filter(is.na(A) & is.na(P) & is.na(V) & is.na(R) & is.na(H) & is.na(S) & is.na(L) & is.na(nat_term))
+CH_mountain_hill_list <- CH_mountain_hill$word
+
+CH_forests <- all_entities_wide %>%
+  filter(is.na(A) & is.na(P) & is.na(R) & is.na(`T`) & is.na(H) & is.na(S) & is.na(L) & is.na(nat_term))
+CH_forests_list <- CH_forests$word
+
+CH_park_areas <- all_entities_wide %>%
+  filter(is.na(A) & is.na(P) & is.na(R) & is.na(`T`) & is.na(H) & is.na(S) & is.na(V) & is.na(nat_term))
+CH_park_areas_list <- CH_park_areas$word
+
+CH_building_spots <- all_entities_wide %>%
+  filter(is.na(A) & is.na(P) & is.na(R) & is.na(`T`) & is.na(H) & is.na(V) & is.na(L) & is.na(nat_term))
+CH_building_spots_list <- CH_building_spots$word
+
+```
+
+
+
+```{r}
+# nat_terms <- all_entities_wide %>%
+#   filter(is.na(A) & is.na(P) & is.na(R) & is.na(`T`) & is.na(H) & is.na(V) & is.na(L) & is.na(S))
+nat_terms_list <- nat_terms$word
+
+# nat_terms_list <- c(nat_terms_list,T_B_list)
+
+# geo_all <- append(geo_all, swiss_places$name)
+  
+# jsonlite::write_json(geo_all, "geo_all.json")
+```
+
+
+# vector lists of Swiss places urban vs. rural
+
+
+```{r}
+# CH_urban <- swiss_places %>%
+#   filter(type == "A" | type == "P" | type == "R" | type == "S") %>%
+#    select("name") %>%
+#    distinct()
+
+
+# CH_rural <- swiss_places %>%
+#   filter(type == "H" | type == "T" | type == "L" | type == "V" | type == "nat_term") %>%
+#    select("name") %>%
+#    distinct()
+
+
+
+# 
+# CH_urban <- swiss_places_selected %>%
+#   filter(urban == "yes")
+# 
+# 
+# CH_rural <- swiss_places_selected %>%
+#   filter(rural == "yes")
+
+CH_urban <- bind_rows(CH_country_regions, CH_roads, CH_city_village)
+
+CH_rural <- bind_rows(CH_mountain_hill, CH_forests, CH_streams_lake)
+
+
+CH_rural_list <- CH_rural$word
+
+CH_urban_list <- CH_urban$word
+
+```
