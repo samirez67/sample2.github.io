@@ -26,7 +26,7 @@ title: members
   - [Jesko Reiling]() (ZB Zurich)
   - [Joanna Byszuk](https://joannaby.github.io) (Institute of Polish Language, Polish Academy of Sciences, Kraków)
 
-## Former Collaborators:
+## Former Collaborators
 
 - [Susanne Gubser](), Project Partner (Basel University Library)
 - [Elias Kreyenbühl](), Project Partner (Basel University Library)
