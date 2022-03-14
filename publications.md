@@ -12,7 +12,8 @@ title: publications
 
 ## Our talks, conference abstracts, and video recordings
 
-  - Herrmann, J.B. (upcoming, December 2021!), Pluriperspektivische Literaturgeschichte durch Distant Reading? Ein Zwischenbericht. Jahrestagung der SGAVL / Colloque annuel de l'ASLGC Paper.
+  - Herrmann, J.B., Grisot, G. (2022). Lieblingsgegenden, Fenster und Mauern. Zur emotionalen Enkodierung von Raum in Deutschschweizer Prosa zwischen 1850 und 1930. PUB-ID: 2961293 OA. In: DHd2022: Kulturen des digitalen Gedächtnisses.
+  - Herrmann, J.B. Pluriperspektivische Literaturgeschichte durch Distant Reading? Ein Zwischenbericht. Jahrestagung der SGAVL / Colloque annuel de l'ASLGC Paper.
   - Grisot, G., Herrmann, J.B. (July 2021), Cities vs. Nature? Mining Emotions in Historical Swiss-German Fictional Space, [Digital Humanities Lunch, Krakow](https://dhlunch.ijp.pan.pl/en/09-07-2021/)
   - Grisot, G., Herrmann, J.B. (June 2021), Emotions and spatial entities: An investigation of "urban" vs. "rural" emotional language in Swiss-German narrative around 1900. [IGEL 2021](https://www.liverpool.ac.uk/english/our-events/igel2021/)
   - Mihurko-Poniz, K., Arias, R., Herrmann, J.B., Krstev, C., Odebrecht, C., Schöch, Ch., & Yesypenko, D. (April 2021). Thresholds to the ‘Great Unread’: Titling Practices across Multilingual Collections of European Novels” (Webinar). Day of DH 2021, COST Action Distant Reading for European Literary History. – Remote event. [See video recording](https://www.youtube.com/watch?v=fMtkwCxkzfw)
