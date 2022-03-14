@@ -15,8 +15,11 @@ title: members
 
   - [Ines Bracht](), Student Assistant
   - [Joanna Gruschka](), Student Assistant
+  - [Federico Pennino](), Student Assistant
+  - [Svenja Schär](), Student Assistant
   - [Nele Spielberg](), Student Assistant
   - [Erdem Tertemiz](), Student Assistant
+  - [Janne Zimmermann](), Student Assistant
   
 ## Project Partners
 
