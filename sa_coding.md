@@ -3,7 +3,7 @@ layout: default
 title: coding
 ---
 
-[home](index.md) | [members](members.md) | [publications](publications.md) | [conferences & talks](conf_talks.md)
+[home](index.md) | [members](members.md) | [publications](publications.md) | [coding tutorials and scripts](sa_coding.md)
 
 ## Coding samples and tutorials
 
