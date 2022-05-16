@@ -13,6 +13,7 @@ title: publications
 ## Our talks, conference abstracts, and video recordings
 
   - Herrmann, J. B.;  Byszuk, J.; Grisot, G (2022). **Using Word Embeddings for Validation and Enhancement of Spatial Entity Lists.** International Conference Digital Humanities 2022. Tokyo, Japan 2022
+  - Grisot, G.; Herrmann, J.B. (2022). **Emotions and space: An investigation of “urban” vs. “rural” emotional language in Swiss fiction in German around 1900**, COST Action Distant Reading for European Literary History, Final Action Event. https://www.distant-reading.net/events/final-action-event/
   - Herrmann, J.B.; Grisot, G. (2022). **Lieblingsgegenden, Fenster und Mauern. Zur emotionalen Enkodierung von Raum in Deutschschweizer Prosa zwischen 1850 und 1930.** PUB-ID: 2961293 OA. In: DHd2022: Kulturen des digitalen Gedächtnisses.
   - Herrmann, J.B. **Pluriperspektivische Literaturgeschichte durch Distant Reading? Ein Zwischenbericht.** Jahrestagung der SGAVL / Colloque annuel de l'ASLGC Paper.
   - Grisot, G.; Herrmann, J.B. (July 2021), **Cities vs. Nature? Mining Emotions in Historical Swiss-German Fictional Space**, [Digital Humanities Lunch, Krakow](https://dhlunch.ijp.pan.pl/en/09-07-2021/)
